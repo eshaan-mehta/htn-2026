@@ -1,5 +1,7 @@
 # Humanity's Last Fight
 
+<img src="icon.png" width="84" height="84" alt="Humanity's Last Fight icon">
+
 HELP! AI is taking over and it's your job to save the species against the rise of AGI. Fight back against the AI revolution in a one-on-one platform fighter for the **Hack the North 2026 Hacker Badge**
 
 You play a human. Your opponent is an AI. Knock it off the stage three times before it does the same to you.
@@ -53,10 +55,11 @@ You need a desktop Chrome or Edge browser, a USB **data** cable, and the badge I
 1. Copy the entire contents of [`last_fight.lua`](last_fight.lua), including the `--[==[badge-app ... ]==]` header at the top.
 2. Open the [Badge IDE](https://badge.hackthenorth.com/ide/). If you have work in the editor already, save it first with **Download app**.
 3. Click **Import app** and paste the whole file. Check that the slug shows as `last_fight`, then click **Replace editor files**.
-4. Turn the badge off, plug in the USB cable, then turn it on normally. Do **not** hold Start while powering on.
-5. Click **Connect** and choose **USB JTAG/serial debug unit** (sometimes labelled Espressif) in the browser's device picker. Close any other tabs or tools using the badge's serial port first.
-6. Click **Push** and keep the cable connected until the upload finishes.
-7. Find **Humanity's Last Fight** (icon `HLF`) in the badge launcher and press **A**.
+4. Optional but recommended: download [`icon.png`](icon.png) from this repo, click **Choose image** in the IDE, and select it. This gives the game a proper launcher icon instead of the `HLF` text fallback. The image is already 42×42, the badge's icon size, so it needs no cropping.
+5. Turn the badge off, plug in the USB cable, then turn it on normally. Do **not** hold Start while powering on.
+6. Click **Connect** and choose **USB JTAG/serial debug unit** (sometimes labelled Espressif) in the browser's device picker. Close any other tabs or tools using the badge's serial port first.
+7. Click **Push** and keep the cable connected until the upload finishes.
+8. Find **Humanity's Last Fight** in the badge launcher and press **A**.
 
 If your IDE page has no **Import app** button, it is an older version. Instead, click `manifest.cfg` in the file list and paste in just the `key=value` lines from between `--[==[badge-app` and `]==]`. Then click `main.lua` and paste in everything after `]==]`. Connect and Push as above.
 
