@@ -1,12 +1,12 @@
 # Humanity's Last Fight
 
-A one-on-one platform fighter for the **Hack the North 2026 Hacker Badge**, written as a single Lua file.
+HELP! AI is taking over and it's your job to save the species against the rise of AGI. Fight back against the AI revolution in a one-on-one platform fighter for the **Hack the North 2026 Hacker Badge**
 
 You play a human. Your opponent is an AI. Knock it off the stage three times before it does the same to you.
 
 ## The game
 
-Smash-style rules: there are no health bars. Every hit you land adds damage percent to your opponent, and the higher their damage, the further they fly when you hit them. Knock them off the edge of the platform and they lose a stock. Each fighter has three stocks.
+Smash-style rules: there are no health bars. Every hit you land adds damage percent to your opponent, and the higher their damage, the further they fly when you hit them. Knock them off the edge of the platform and they lose a stock. There are 3 levels of difficulty
 
 Pick a difficulty on the title screen. Each one is a different opponent and a different stage:
 
