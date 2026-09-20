@@ -16,7 +16,7 @@ Pick a difficulty on the title screen. Each one is a different opponent and a di
 | **AGENT** | Modern AI. Faster, blocks, jumps back to the stage when knocked off. | Sunset |
 | **AGI** | Punishes your whiffs, double-jumps, reads your attacks. | Something has gone wrong |
 
-Beating AGI is the real win. Losing to it is worth seeing at least once.
+Try beating AGI if you can (even I haven't been able to yet)
 
 ### Controls
 
@@ -62,10 +62,10 @@ If your IDE page has no **Import app** button, it is an older version. Instead, 
 
 **Troubleshooting:** if the app fails to open with `Lua memory limit exceeded` in the IDE console, the badge did not have enough free RAM to compile the file. Reboot the badge and try opening the app again straight from the launcher. Removing comments and blank lines from `last_fight.lua` before pushing also helps, since the source text has to fit in RAM while it compiles.
 
-## Share it with your friends
+## Feel free to share it with your friends :)
 
-You do not need a laptop to pass the game along. The badge's built-in **Share** app sends any installed app to another badge over Bluetooth.
+The badge's built-in **Share** app sends any installed app to another badge over Bluetooth.
 
 On your badge, open **Share → Send an app**, pick **Humanity's Last Fight**, and press **A: offer app**. Leave that screen open. On your friend's badge, open **Share → Receive an app** and press **A: accept**. Keep the badges close and still until the transfer finishes, and the game will show up in their launcher.
 
-Go make someone lose to AGI.
+Now go save humanity against the rise of AI!
