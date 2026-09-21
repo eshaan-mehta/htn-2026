@@ -12,7 +12,7 @@ local floor, RM = math.floor, "A  rematch        B  menu"
 local B
 local SIDE = {{1, 6, 5}, {2, 3, 4}}
 local BC, HC, BB = {0xffd23f, 0xff4f6d}, {0xffe98a, 0xff9fb0}, {0x9a7e20, 0x99303f}
-local DIFF = {{"CHAT", 0.6, 90, 0, false, false, 5}, {"AGENT", 1, 45, 30, false, false, 40}, {"AGI", 1.25, 38, 65, true, true, 100}}
+local DIFF = {{"CHATBOT", 0.6, 90, 0, false, false, 5}, {"AGENT", 1, 45, 30, false, false, 40}, {"AGI", 1.25, 38, 65, true, true, 100}}
 local DC = {{0, 90, 30}, {110, 90, 0}, {120, 0, 20}}
 -- per difficulty: sky bands 1-4, hill color, hill radius, clouds, stars, orb color (false = none), orb w, h, x, y, platform, dirt, platform border
 local TH = {

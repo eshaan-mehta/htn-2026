@@ -14,7 +14,7 @@ Pick a difficulty on the title screen. Each one is a different opponent and a di
 
 | Difficulty | Opponent | Stage |
 |---|---|---|
-| **CHAT** | AI from 2022. Slow, rarely blocks, never recovers if it falls. | Daytime hills |
+| **CHATBOT** | AI from 2022. Slow, rarely blocks, never recovers if it falls. | Daytime hills |
 | **AGENT** | Modern AI. Faster, blocks, jumps back to the stage when knocked off. | Sunset |
 | **AGI** | Punishes your whiffs, double-jumps, reads your attacks. | Something has gone wrong |
 
