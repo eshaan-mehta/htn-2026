@@ -48,9 +48,9 @@ Try beating AGI if you can (even I haven't been able to yet)
 
 The badge LEDs track the fight. Your three LEDs and the AI's three LEDs shift from green to red as damage climbs, and flash white on a hit.
 
-## How it's built
+## How it works
 
-[IMPLEMENTATION.md](IMPLEMENTATION.md) explains the internals: how the game renders with nothing but LVGL boxes, the fixed-step physics and combat rules, how each AI difficulty is tuned, the themed stages, the AGI cutscene, the badge's memory limits and what was cut to fit them, and how the game was tested without hardware.
+If you would like to learn more, read [IMPLEMENTATION.md](IMPLEMENTATION.md). It explains everything from the rendering hack that made this possible, the physics and combat rules, how each AI difficulty is tuned, the cutscenes, the badge's memory constraints and optimizations.
 
 ## Flashing it onto your badge (Build from source)
 
