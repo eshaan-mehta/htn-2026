@@ -7,8 +7,15 @@ heap_kb=96
 wake_lock=1
 ]==]
 
-local PX1,PX2,PY,G,WALK,STEP=40,280,170,0.4,3,20
-local floor,min,RM=math.floor,math.min,"A  rematch        B  menu"
+
+local PX1<const> =40
+local PX2<const> =280
+local PY<const> =170
+local G<const> =0.4
+local WALK<const> =3
+local STEP<const> =20
+local RM<const> ="A  rematch        B  menu"
+local floor,min=math.floor,math.min
 local B
 local FC={0xffd23f,0xff4f6d,0xffe98a,0xff9fb0,0x9a7e20,0x99303f}
 local F,hud,hearts,tag,W,NM={},{},{},{},{},{"You","AI"}

@@ -75,7 +75,7 @@ Edit `last_fight.lua`, then regenerate the minified build before pushing or comm
 python3 tools/minify.py last_fight.lua > last_fight.min.lua
 ```
 
-The minifier keeps every line number, so an error line reported by the badge points at the same line in the readable file. Two more checks are worth running (both need a desktop Lua 5.4, for example `brew install lua@5.4`): `luac5.4 -s -o /tmp/x.luac last_fight.lua && wc -c /tmp/x.luac` gives the compiled size, which has to stay under roughly 14.8 KB or the badge cannot compile it, and `tools/trace.lua` records a full simulated play-through so you can `cmp` the game's visual behaviour before and after a change. [IMPLEMENTATION.md](IMPLEMENTATION.md) has the details.
+The minifier keeps every line number, so an error line reported by the badge points at the same line in the readable file. Two more checks are worth running (both need a desktop Lua 5.5, the version the badge runs, for example `brew install lua`): `luac -s -o /tmp/x.luac last_fight.lua && wc -c /tmp/x.luac` gives the compiled size, which has to stay under roughly 14.0 KB or the badge cannot compile it, and `tools/trace.lua` records a full simulated play-through so you can `cmp` the game's visual behaviour before and after a change. [IMPLEMENTATION.md](IMPLEMENTATION.md) has the details.
 
 ## Share it with others :)
 

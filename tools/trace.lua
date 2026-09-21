@@ -1,5 +1,5 @@
--- Visual-equivalence trace harness for badge apps (desktop Lua 5.4, no hardware).
--- usage: lua5.4 tools/trace.lua last_fight.lua /tmp/out.trace
+-- Visual-equivalence trace harness for badge apps (desktop Lua 5.5, the badge's version; no hardware).
+-- usage: lua tools/trace.lua last_fight.lua /tmp/out.trace
 -- Simulates the badge API with a seeded RNG, drives menu / all difficulties / idle losses / an aggressive
 -- player / rematches, and records every per-tick widget state change and LED frame. Run it before and
 -- after a change and `cmp` the two traces: identical traces mean the game looks identical.

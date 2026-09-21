@@ -39,6 +39,8 @@ def needs_space(prev, nxt):
         return True
     if prev.endswith('[') and nxt.startswith('['):
         return True
+    if prev[-1] + nxt[0] in ('==', '~=', '<=', '>=', '//', '::', '<<', '>>', '..'):
+        return True
     return False
 
 

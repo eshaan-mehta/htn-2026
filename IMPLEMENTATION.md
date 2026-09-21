@@ -313,38 +313,39 @@ Used and peak are far below the 96 KiB quota. The message is the badge's generic
 Findings from that failure:
 
 - **Source text size does not matter.** A minified copy of the same file, with identical bytecode, failed the same way. Comments and whitespace cost nothing, which is also why `last_fight.min.lua` fits exactly as well as the readable file.
-- **Compiled size does.** Stripped bytecode from Lua 5.4's `luac -s` is the proxy. The largest build known to run was 14,828 bytes; a build about 1.4 KB bigger failed. The current file compiles to about 13.2 KB.
-- **Measure with the right Lua.** Homebrew's default `luac` is Lua 5.5, whose bytecode stores integer constants compactly. The badge runs a 5.4-class Lua that spends 9 bytes on every integer constant, so 5.5 numbers under-count by about 6%. Install `lua@5.4` and use `luac5.4`.
+- **Compiled size does.** Stripped bytecode from `luac -s` is the proxy. The largest build known to run was 13,994 bytes; the one that failed was 15,286. Treat 14.0 KB as the ceiling. The current file compiles to about 12.3 KB.
+- **Measure with the right Lua.** The badge runs Lua 5.5 (it logs `_VERSION` as `Lua 5.5`), which is also what Homebrew's `luac` is. Lua 5.4's `luac` stores integer constants in 9 bytes where 5.5 uses 2 to 5, so its numbers run about 6% high; use plain `luac`.
 
 Widgets are cheap, roughly 140 bytes each, and are allocated only after compilation succeeded. The game's fifty-two widgets are not the problem. Code is.
 
 ## 15. Optimizations
 
-The compiled size went from 14,828 bytes to about 13.2 KB, which is what paid for the win cutscene. Changes, roughly in order of how much they saved, all verified to leave the game's visible behaviour byte-for-byte identical with the harness in section 16:
+The compiled size went from 13,994 bytes to about 12.3 KB, which is what paid for the win cutscene. Changes, roughly in order of how much they saved, all verified to leave the game's visible behaviour byte-for-byte identical with the harness in section 16:
 
-- **Data as strings, not tables.** Every integer literal outside the small immediate range, which includes every 0xRRGGBB colour, is a 9-byte constant in each function that uses it, plus instructions to load it and store it into a table. Packing the theme rows, AI parameters, hill geometry, cloud rows and menu LED colours into binary strings and decoding them with `string.unpack` or `string.byte` costs 1 to 3 bytes per value. This was the single biggest win.
+- **Data as strings, not tables.** Every integer literal outside the small immediate range, which includes every 0xRRGGBB colour, is a constant-table entry in each function that uses it, plus instructions to load it and store it into a table. Packing the theme rows, AI parameters, hill geometry, cloud rows and menu LED colours into binary strings and decoding them with `string.unpack` or `string.byte` costs 1 to 3 bytes per value. This was the single biggest win.
 - **One scene setup.** `menu()`, `start()` and the cutscene setup in the KO handler were three copies of the same hide-and-restyle work. They became `place(m, now)`, and states became integers so `st = m` is one store.
 - **Draw everything through the camera.** `draw()` used to place boxes directly and the cutscene had its own copies of the same arithmetic. Routing `draw()` through `wb()` and adding `frame()` removed four hand-written placement sequences and made the cutscene reuse the fight's renderer.
 - **`set_color` instead of `style{}`.** A style call builds a table each time; `w:set_color(c)` is one method call with no table. Applied everywhere a single colour changes.
 - **Integer division.** `floor(x / n)` became `x // n` where both sides are integers, and the `floor` call on fighter positions moved into `wb()`.
+- **`<const>` locals.** Declaring the platform geometry, gravity, step and rematch-prompt constants `<const>`, one per `local` line, lets the compiler fold them into instruction operands instead of upvalue loads. About 340 bytes.
 - **Fewer, shared constants.** `badge.led` and `math.min` cached in locals; "You" and "AI" in one table used by the HUD and the fall message; fighter colours in one flat table instead of three; the platform border width stored in the theme data instead of computed.
 - **Simpler logic with identical results.** The AI's attack decision factored into one boolean expression, the six-LED loop without a side table, button dispatch by button first, the punish and hop flags merged since they were only ever set together, constant-valued multiple assignments split into single stores (each is one instruction with a constant operand), and a spec-string loop for the seven labels.
 - **Dropping fields that are always set before use.** The fighter constructor no longer initialises `face`, `stk` or the AI parameters.
 - **Earlier rounds** (before this pass): blood particles removed, stock hearts became dots, the theme table flattened, background widgets shared across stages, camera helpers inlined, LED chase simplified, `floor` as a local, stars from a formula.
 
-Measured and rejected: the factory table form `badge.ui.box{...}` is larger than positional calls; shortening field names to one letter saved little; dropping the draw caches saved bytes but adds LVGL work every tick; Lua 5.4 `<const>` locals would save about 340 bytes more but are a syntax error on Lua 5.3, and the badge's exact version is unconfirmed.
+Measured and rejected: the factory table form `badge.ui.box{...}` is larger than positional calls; shortening field names to one letter saved little; dropping the draw caches saved bytes but adds LVGL work every tick; and dropping the `sa`/`sb` draw caches was rejected for the same reason.
 
 Runtime allocations are minimal as well. Input tables are reused, no widgets are created after `on_enter`, and per-tick garbage is limited to the HUD string when damage changes and the decoded theme locals when a stage is applied.
 
 ## 16. Testing without a badge
 
-Most iteration happened without hardware, with a desktop Lua 5.4.
+Most iteration happened without hardware, with a desktop Lua 5.5, the version the badge runs.
 
 `tools/trace.lua` is a visual-equivalence harness. It stands in a fake `badge` table whose widgets record every state change, gives `badge.sys.ms` a simulated clock and `badge.sys.random` a fixed seed, and scripts a full session: cycling the difficulty selector, idling to a loss on all three difficulties including the loss cutscene, an aggressive scripted player who chases and attacks and reaches the win ending, rematches, and returns to the menu. It writes one line per widget property that changed on each tick, plus every LED frame, about 39,000 lines. Run it before and after a change and `cmp` the two files: identical output means the game looks identical. Every optimization in section 15 was accepted only on an identical trace, and the harness caught a wrong-sign bug in the win cutscene's flash within minutes.
 
 It also raises an error if any coordinate or size is not an integer, since LVGL rejects fractional values, and it reports which texts were seen so you can confirm a scenario reached the ending it was meant to.
 
-Alongside that, `luac5.4 -p` checks syntax, `luac5.4 -s` gives the bytecode size to hold against the ceiling in section 14, and `luac5.4 -l -l` shows per-function instruction counts and constant tables when hunting for bytes.
+Alongside that, `luac -p` checks syntax, `luac -s` gives the bytecode size to hold against the ceiling in section 14, and `luac -l -l` shows per-function instruction counts and constant tables when hunting for bytes.
 
 ## 17. Things that did not work
 
