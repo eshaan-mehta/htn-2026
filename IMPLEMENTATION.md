@@ -35,12 +35,12 @@ The badge runs Lua apps in a sandbox. An app gets four callbacks (`on_enter`, `o
 | `badge.led.set`, `set_all`, `clear`, `show` | The six LEDs. |
 | `badge.sys.ms`, `badge.sys.random`, `badge.sys.stats`, `badge.sys.log` | Clock, RNG, heap numbers, serial log. |
 
-Constraints that shaped every decision:
+Constraints that I had to keep in mind:
 
-- **Widgets, not pixels.** Everything on screen is a rectangle with an optional corner radius. Fighters, hills, clouds, stars, blood, all boxes.
-- **RAM.** The manifest asks for a 96 KiB Lua quota, but the badge has about 76 KB of free system heap when the launcher is open. Compiling the file eats most of it. Section 14 covers this in detail; it is the constraint that cost the most features.
-- **No usable radio.** On the firmware shipped with the badges, Bluetooth initialization needs about 47 KB of the 50 KB a Lua app can have free, and the vendor's own radio demo fails. The game was designed as a two-badge fighter and became single player against an AI.
-- **Tick budget.** The firmware calls `on_tick` repeatedly and kills the app if one call runs too long. Nothing in the game does heavy work in a single tick.
+- **Widget based design** Everything on screen is a rectangle with an optional corner radius. Fighters, hills, clouds, stars, blood, all boxes.
+- **RAM.** The manifest asks for a 96 KiB Lua quota, but the badge has about 76 KB of free system heap when the launcher is open. Compiling the file eats most of it. Section 14 covers this in detail.
+- **No usable radio.** The game was intially designed as a two-badge PvP fighter, but due to the high memory demands of the bluetooth module, I pivoted to a PvE game.
+- **Tick budget.** The firmware calls `on_tick` repeatedly and kills the app if one call runs too long. No heavy work in a single tick.
 
 ## 2. File layout and lifecycle
 
@@ -76,11 +76,11 @@ One string variable, `st`, holds the state.
 |---|---|---|
 | `menu` | Title, controls, difficulty selector over a dimmed live stage | A pressed, goes to `count` |
 | `count` | 3, 2, 1, FIGHT! | 3.6 s elapsed, goes to `play` |
-| `play` | The fight | A fighter loses its last stock, goes to `ko` or `cut` |
-| `ko` | Result headline, typed flavor line, rematch prompt | A restarts (`count`), B or Start goes to `menu` |
-| `cut` | The AGI loss cutscene | 11.5 s elapsed, goes to `ko`. Start skips to `menu` |
+| `play` | The fight | When a fighter loses, goes to `ko` or `cut` |
+| `ko` | Result headline with typed text feeling, rematch prompt | A restarts (`count`), B or Start goes to `menu` |
+| `cut` | The cutscene(s) | 11.5 s elapsed, goes to `ko`. Start skips to `menu` |
 
-Other state variables worth knowing: `di` is the difficulty index 1 to 3, `ct` is the timestamp the current state began, `kw` is the winner index after a KO, `Z` is the cutscene zoom factor, `acc` and `last` drive the fixed-step clock.
+Other state variables: `di` is the difficulty index 1 to 3, `ct` is the timestamp the current state began, `kw` is the winner index after a KO, `Z` is the cutscene zoom factor, `acc` and `last` drive the fixed-step clock.
 
 ## 4. Timing: fixed-step simulation
 
@@ -288,7 +288,7 @@ The damage ramp is `t = min(dmg, 100) / 50`, red `150 * min(1, t)`, green `150 *
 
 ## 14. Memory: the real budget
 
-This is the constraint that decided what shipped.
+This is the biggest constraint that determined the game's direction
 
 The badge reports about 76 KB of free system heap with the launcher open, with a largest contiguous block of about 62 KB. Opening an app compiles its Lua source in that space. Every function, table, string, and constant array becomes a separate heap allocation with its own bookkeeping overhead. Compiled code lands around 2.5 to 2.75 bytes of RAM per byte of source, on top of about 16 KB for the Lua runtime itself.
 
@@ -339,12 +339,8 @@ Alongside that, `luac -p` checks syntax and `luac -s` gives the bytecode size to
 
 ## 17. Things that did not work
 
-- **Two-badge netplay.** The original design was a 1v1 fighter over the badge radio: each badge simulates its own fighter, broadcasts position and state, and the receiver decides whether it was hit. Pairing was going to be a physical bump detected by the accelerometer. On firmware v0.1.2-392, `badge.radio.enable()` consumed about 47 KB during Bluetooth initialization and then timed out waiting for host sync, even for the vendor's own 1.7 KB demo. Netplay is blocked at the firmware level. The AI opponent replaced it.
+- **Two-badge multiplayer.** The original design was a 1v1 fighter over the badge radio: each badge simulates its own fighter, broadcasts position and state, and the receiver decides whether it was hit. Pairing was going to be a physical bump detected by the accelerometer. On firmware v0.1.2-392, `badge.radio.enable()` consumed about 47 KB during Bluetooth initialization and then timed out waiting for host sync, even for the vendor's own 1.7 KB demo. Netplay is blocked at the firmware level. The AI opponent replaced it.
 - **Pixel-art sprites.** The plan was to generate LVGL image files at launch from palette strings and animate by showing and hiding image widgets. Each frame costs about 1.2 KB of RAM and mirrored facings need separate files. The memory was not there. Fighters stayed as boxes.
-- **The AGI eye.** The AGI stage first had a large red eye with a black pupil that tracked the player. On hardware the pupil, a 14x22 rounded box, looked like a fighter silhouette, and the eye sat over the AI's stock dots. It was removed.
-- **Green hills.** They blended into the green platform on the CHATBOT stage. They became blue.
-- **Leaving a radio app** reboots the badge. Not relevant now, but it shaped the early probes.
-- **Uninstalling apps.** The IDE console's `rm` removes files but not folders. An app folder with no manifest is skipped by the launcher with a warning and costs no RAM, so leftover folders are harmless.
 
 ## 18. Function index
 
