@@ -84,7 +84,7 @@ One integer variable, `st`, holds the state.
 
 Every transition except 3 to 5 goes through one function, `place(m, now)`, where `m` is the state to enter. It sets up the whole scene for that state: which widgets are hidden, the overlay colour, fighter positions, AI parameters, LED state, and it re-applies the stage theme. Having one setup function means a cutscene or a menu visit can change anything it likes, because the next `place()` puts everything back.
 
-Other state variables: `di` is the difficulty index 1 to 3, `ct` is the timestamp the current state began, `kw` is the winner index after a KO, `Z` is the cutscene zoom factor, `acc` and `last` drive the fixed-step clock.
+Other state variables: `di` is the difficulty index 1 to 3, `ct` is the timestamp the current state began, `kw` is the winner index after a KO, `Z` is the cutscene zoom factor, `acc` and `last` drive the fixed-step clock, and `god` is the god-mode toggle.
 
 ## 4. Timing: fixed-step simulation
 
@@ -241,6 +241,8 @@ Behaviour each step:
 4. **Recover.** In the air past an edge, steer back toward the platform. With `rec` and a double jump available, jump. With `hop`, there is a 4% per step chance to double jump while falling and a 2% chance to hop on the ground.
 
 CHATBOT never blocks, never recovers, and attacks about once every two seconds if you stand next to it. AGI attacks the moment it is in range, blocks two thirds of your swings, punishes every whiff, and gets back on stage.
+
+**God mode.** The badge exposes the slide switch next to the USB-C port as `BUTTON.AUX1`, and a flip arrives in `on_button` as a single press or release event. `on_button` toggles a `god` flag on any AUX1 event before it filters for presses, so the switch is edge-triggered: whichever position it starts in is normal. When a fight starts with the flag set, `place(2)` gives the AI 200 % damage, one stock and a zero block chance, so the first hit rings it out. The whole feature is three lines and 84 bytes of bytecode.
 
 ## 11. End screens and the typewriter
 

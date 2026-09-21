@@ -21,7 +21,7 @@ local FC={0xffd23f,0xff4f6d,0xffe98a,0xff9fb0,0x9a7e20,0x99303f}
 local F,hud,hearts,tag,W,NM={},{},{},{},{},{"You","AI"}
 
 local st,di,acc,last,pa,pu,ct,cn=1,1,0,0,false,false,0,-1
-local ledt,kw,sub,sn,L=0,1,nil,-1
+local ledt,kw,sub,sn,L,god=0,1,nil,-1
 local function spawn(f,x)
 f.x,f.y=x,PY-60
 f.vx=0;f.vy=0;f.air=true
@@ -114,6 +114,7 @@ hint(m==1 and"Left / Right  difficulty        A  start"or"")
 
 local a,s,cd,bp,tm=F[2],string.byte("\x0c\x5a\x00\x05\x14\x2d\x1e\x28\x19\x26\x41\x64",di*4-3,di*4)
 a.spd,a.cd,a.bp,a.hop,a.tm,a.rec=s/20,cd,bp,di==3,tm,di>1
+if m==2 and god then a.dmg,a.stk,a.bp=200,1,0 end
 st,ct,cn=m,now,-1
 hudup(c)
 frame()
@@ -368,6 +369,7 @@ if now>=ledt then ledt=now+50;leds(now)end
 end
 
 function on_button(b,kind)
+if b==B.AUX1 then god=not god;return end
 if kind~=badge.input.KIND.PRESSED then return end
 if b==B.A and(st==1 or st==5)then place(2,badge.sys.ms())
 elseif b==B.START and st~=1 or b==B.B and st==5 then place(1)

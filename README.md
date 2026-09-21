@@ -39,6 +39,10 @@ Try beating AGI if you can (even I haven't been able to yet). There is a proper 
 | B (hold) | Block. Blocking only works on the ground and only from the front. Releasing it puts you on a short cooldown. |
 | Start | Back to the title screen |
 
+**God mode**
+
+Flip the small switch next to the USB-C port at any time to toggle god mode for the next fight. The AI starts at 200 % damage with a single stock and never blocks, so any hit rings it out. Whatever position the switch is in when the game opens counts as normal; each flip after that toggles. Flip it again to go back to a fair fight.
+
 **After a KO**
 
 | Button | Action |
