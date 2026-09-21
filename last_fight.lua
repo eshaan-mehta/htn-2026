@@ -8,38 +8,24 @@ wake_lock=1
 ]==]
 -- Humanity's Last Fight: You vs AI. L/R move  Up jump x2  A attack  B block  Start menu
 local PX1, PX2, PY, G, WALK, STEP = 40, 280, 170, 0.4, 3, 20
-local floor, RM = math.floor, "A  rematch        B  menu"
+local floor, min, RM = math.floor, math.min, "A  rematch        B  menu"
 local B
-local SIDE = {{1, 6, 5}, {2, 3, 4}}
-local BC, HC, BB = {0xffd23f, 0xff4f6d}, {0xffe98a, 0xff9fb0}, {0x9a7e20, 0x99303f}
-local DIFF = {{"CHATBOT", 0.6, 90, 0, false, false, 5}, {"AGENT", 1, 45, 30, false, false, 40}, {"AGI", 1.25, 38, 65, true, true, 100}}
-local DC = {{0, 90, 30}, {110, 90, 0}, {120, 0, 20}}
--- per difficulty: sky bands 1-4, hill color, hill radius, clouds, stars, orb color (false = none), orb w, h, x, y, platform, dirt, platform border
-local TH = {
-  {0x2a6fd6, 0x3b82e2, 0x56a0ee, 0x7cc0f8, 0x3467a8, 40, 0xffffff, false, 0xffe14a, 30, 30, 182, 6, 0x3fae3f, 0x7a4a1e, 0},
-  {0x14102a, 0x2a1a48, 0x4b2a5a, 0x7a3a55, 0x120e1e, 40, 0x3a3848, 0xd0d0e0, 0xd8dae6, 24, 24, 186, 8, 0x5c6b34, 0x352518, 0},
-  {0x050005, 0x180006, 0x38000a, 0x70000e, 0x000000, 0, 0x2a0000, 0xff4a20, false, 0, 0, 0, 0, 0x150808, 0x050000, 0xff2020},
-}
-local HILL, CLY = {{-20, 120, 70}, {80, 140, 50}, {190, 150, 80}, {300, 60, 40}}, {40, 22, 62}
-local F, hud, hearts, tag, W = {}, {}, {}, {}, {}
-local st, di, acc, last, pa, pu, ct, cn = "menu", 1, 0, 0, false, false, 0, -1
-local ledt, kw, sub, sn = 0, 1, nil, -1
--- end-screen lines per difficulty {win, loss}; false = cutscene
-local END = {
-  {"You beat AI from 2022...\nGo stop the agents\nfrom taking action", "Sigh, humanity never\nstood a chance..."},
-  {"You beat modern AI, but the\nbubble hasn't popped just yet.", "It was fun while it lasted"},
-  {"", false},
-}
-
+local FC = {0xffd23f, 0xff4f6d, 0xffe98a, 0xff9fb0, 0x9a7e20, 0x99303f} -- fighter colours: body 1-2, head 3-4, blocking body 5-6
+local F, hud, hearts, tag, W, NM = {}, {}, {}, {}, {}, {"You", "AI"}
+-- st: 1 menu, 2 countdown, 3 play, 4 AGI cutscene (win or loss), 5 ko/end screen
+local st, di, acc, last, pa, pu, ct, cn = 1, 1, 0, 0, false, false, 0, -1
+local ledt, kw, sub, sn, L = 0, 1, nil, -1
 local function spawn(f, x)
-  f.x, f.y, f.vx, f.vy, f.air = x, PY - 60, 0, 0, true
-  f.dmg, f.atk, f.stun, f.dead, f.blk, f.bcd, f.hit, f.dj, f.bt = 0, 0, 0, 0, false, 0, true, true, 0
+  f.x, f.y = x, PY - 60
+  f.vx = 0; f.vy = 0; f.air = true
+  f.dmg = 0; f.atk = 0; f.stun = 0; f.dead = 0; f.bcd = 0; f.bt = 0
+  f.blk = false; f.hit = true; f.dj = true
 end
 
-local function hudup()
+local function hudup(c)  -- c: hide all hearts (cutscene)
   for i = 1, 2 do
-    hud[i]:set_text((i == 1 and "You " or "AI ") .. F[i].dmg .. "%")
-    for k = 1, 3 do hearts[i][k]:hidden(k > F[i].stk) end
+    hud[i]:set_text(NM[i] .. " " .. F[i].dmg .. "%")
+    for k = 1, 3 do hearts[i][k]:hidden(c or k > F[i].stk) end
   end
 end
 
@@ -49,7 +35,7 @@ end
 
 -- typewriter: reveal tx on w at 140 ms per char, t = ms since start; true when done
 local function typ(w, tx, t)
-  local n = math.min(#tx + 1, floor(t / 140))
+  local n = min(#tx + 1, t // 140)
   if n ~= sn and n >= 0 then sn = n; w:set_text(string.sub(tx, 1, n)) end
   return n > #tx
 end
@@ -61,117 +47,132 @@ local function wb(w, x, y, ww, hh)
 end
 
 local function draw(f)
-  local x, y = floor(f.x), floor(f.y)
+  local x, y = f.x, f.y
   if f.dead > 0 then x, y = -50, -50 end
-  f.wb:set_pos(x - 7, y - 22)
-  f.wh:set_pos(x - 5, y - 32)
+  if f.cut == 2 then wb(f.wb, 139, PY - 10, 22, 10); wb(f.wh, x - 5, y - 5, 10, 10) -- knocked flat, y = head centre
+  else wb(f.wb, x - 7, y - 22, 14, 22); wb(f.wh, x - 5, y - 32, 10, 10) end
   local act = f.dead == 0 and f.atk >= 5 and f.atk <= 9
-  if act then f.wa:set_pos(x + (f.face > 0 and 7 or -25), y - 22) end
+  if act then wb(f.wa, x + (f.face > 0 and 7 or -25), y - 22, 18, 12) end
   if act ~= f.sa then f.sa = act; f.wa:hidden(not act) end
-  if f.blk ~= f.sb then f.sb = f.blk; f.wb:style({bg_color = f.blk and BB[f.i] or BC[f.i]}) end
+  if f.blk ~= f.sb then f.sb = f.blk; f.wb:set_color(FC[f.i + (f.blk and 4 or 0)]) end
 end
 
--- put both fighters on the platform facing each other; m = menu mode
-local function place(m)
-  Z = 1
+-- redraw the whole scene at camera Z: platform, dirt and both fighters
+local function frame()
   wb(W.plat, PX1, PY, PX2 - PX1, 10); wb(W.dirt, PX1 + 4, PY + 10, PX2 - PX1 - 8, 12)
-  for k = 1, 4 do W.hill[k]:hidden(false) end
+  draw(F[1]); draw(F[2])
+end
+
+-- apply the stage theme of difficulty d (default: the selected one); the win cutscene calls theme(1) for a daytime ending
+local function theme(d)
+  d = d or di
+  -- TH: 38 bytes per difficulty, big-endian: sky bands 1-4 and hill colour (3 bytes each), hill radius (1),
+  -- cloud, star, orb colour (3 each; 0 = none), orb size, x, y (1 each), platform, dirt, platform border colour (3 each), border width (1)
+  local TH = "\x2a\x6f\xd6\x3b\x82\xe2\x56\xa0\xee\x7c\xc0\xf8\x34\x67\xa8\x28\xff\xff\xff\x00\x00\x00\xff\xe1\x4a\x1e\xb6\x06\x3f\xae\x3f\x7a\x4a\x1e\x00\x00\x00\x00\z
+    \x14\x10\x2a\x2a\x1a\x48\x4b\x2a\x5a\x7a\x3a\x55\x12\x0e\x1e\x28\x3a\x38\x48\xd0\xd0\xe0\xd8\xda\xe6\x18\xba\x08\x5c\x6b\x34\x35\x25\x18\x00\x00\x00\x00\z
+    \x05\x00\x05\x18\x00\x06\x38\x00\x0a\x70\x00\x0e\x00\x00\x00\x00\x2a\x00\x00\xff\x4a\x20\x00\x00\x00\x00\x00\x00\x15\x08\x08\x05\x00\x00\xff\x20\x20\x02"
+  local s1, s2, s3, s4, hc, hr, cc, sc, oc, os, ox, oy, pc, dc, bc, bw = string.unpack(">I3I3I3I3I3BI3I3I3BBBI3I3I3B", TH, d * 38 - 37)
+  local sky = {s1, s2, s3, s4}
+  for k = 1, 4 do W.sky[k]:set_color(sky[k]); W.hill[k]:style({bg_color = hc, radius = hr}) end
+  for k = 1, 6 do W.cl[k]:set_color(cc) end
+  for k = 1, 10 do W.star[k]:hidden(sc == 0); W.star[k]:set_color(sc) end
+  W.orb:hidden(oc == 0)
+  if oc > 0 then W.orb:set_size(os, os); W.orb:set_pos(ox, oy); W.orb:style({bg_color = oc, radius = os // 2}) end
+  W.plat:set_color(pc); W.plat:set_border(bc, bw)
+  W.dirt:set_color(dc)
+  W.dif:set_text("Difficulty:   <  " .. ({"CHATBOT", "AGENT", "AGI"})[d] .. "  >")
+end
+
+-- scene setup, st becomes m: 1 menu, 2 start a fight (fighters respawn on the platform), 4 AGI cutscene
+local function place(m, now)
+  local c, h, g = m == 4, m ~= 1, m ~= 2
+  theme() -- also undoes the win cutscene's daytime ending
+  Z = 1
+  for k = 1, 6 do W.cl[k]:hidden(c); if k < 5 then W.hill[k]:hidden(c) end end
   for i = 1, 2 do
     local f = F[i]
-    spawn(f, 10 + i * 100)
-    f.stk, f.y, f.air, f.face, f.sa, f.sb = 3, PY, false, 3 - 2 * i, nil, nil
-    f.wb:set_size(14, 22); f.wh:set_size(10, 10); f.wa:set_size(18, 12); f.wa:style({bg_color = 0xffffff})
-    draw(f)
-    hud[i]:hidden(m)
-    tag[i]:set_pos(floor(f.x) - 14, PY - 54)
-    tag[i]:hidden(m)
+    if not c then
+      spawn(f, 10 + i * 100)
+      f.stk, f.y, f.air, f.face, f.sa, f.sb, f.cut = 3, PY, false, 3 - 2 * i, nil, nil, nil
+      f.wa:set_size(18, 12)
+    end
+    f.wa:set_color(c and i == 2 and 0xff2020 or FC[i])
+    hud[i]:hidden(g); tag[i]:hidden(g)
   end
-  W.over:hidden(not m); W.title:hidden(not m); W.keys:hidden(not m); W.acts:hidden(not m); W.dif:hidden(not m)
-  W.over:style({bg_color = 0, bg_opa = 130}); W.msg:style({text_color = 0xffffff}); W.sub:set_text("")
-  W.pool:hidden(true)
-  hudup()
+  W.over:hidden(h); W.title:hidden(h); W.keys:hidden(h); W.acts:hidden(h); W.dif:hidden(h)
+  W.over:style({bg_color = c and 0xffffff or 0, bg_opa = c and 230 or 130}); W.msg:set_color(c and kw == 2 and 0xff2020 or 0xffffff)
+  W.sub:set_text(""); W.pool:hidden(true)
+  if m ~= 2 then W.msg:set_text("") end
+  hint(m == 1 and "Left / Right  difficulty        A  start" or "")
+  -- AI stats, 4 bytes per difficulty: speed x20, attack cooldown, block chance %, aggression %
+  local a, s, cd, bp, tm = F[2], string.byte("\x0c\x5a\x00\x05\x14\x2d\x1e\x28\x19\x26\x41\x64", di * 4 - 3, di * 4)
+  a.spd, a.cd, a.bp, a.hop, a.tm, a.rec = s / 20, cd, bp, di == 3, tm, di > 1
+  st, ct, cn = m, now, -1
+  hudup(c)
+  frame()
 end
 
--- AGI loss cutscene, t = ms since KO: zoom in, hold, AI walks in, blade up, strike, aftermath, line
+-- AGI cutscene, t = ms since KO. place(4) has set the scene; frame() redraws it at camera Z each tick.
+-- p = victim, a = attacker: the AI (kw 2) comes from the right with a blade and knocks the player flat;
+-- the human (kw 1) comes from the left, winds up a punch that sends the AI flying; once it is off screen the day theme returns.
+-- Phases: zoom + victim trembles | attacker walks in | weapon out at body height / wind-up | strike + white flash
+-- | aftermath setup (once) | aftermath physics + typewriter line -> st 5.
 local function cut(now)
-  local t, p, a = now - ct, F[1], F[2]
-  local u = 1 - math.min(1, t / 1500)
+  local t, p, a, k = now - ct, F[3 - kw], F[kw], kw == 1
+  local u = 1 - min(1, t / 1500)
   Z = 2.2 - 1.2 * u * u
   if t < 6500 then
-    p.x = 150 + floor(t / 100) % 2
-    if t >= 2500 then a.x = math.max(176, 236 - (t - 2500) * 0.02) end
-    if t >= 5500 then a.wa:hidden(false); wb(a.wa, a.x - 24, PY - 52, 18, 12) end
+    p.x, p.y, a.y = 150 + t // 100 % 2, PY, PY
+    if t >= 2500 then
+      local x = math.max(176, 236 - (t - 2500) * 0.02)
+      a.x = k and 300 - x or x
+    end
+    if t >= 5500 then a.wa:hidden(false); wb(a.wa, k and a.x + 6 - (t - 5500) * 0.014 or a.x - 24, PY - 22, 18, 12) end
   elseif t < 6700 then
-    wb(a.wa, 141, PY - 36, 18, 12)
-    W.over:hidden(false)
+    if k then a.x = 132 end
+    wb(a.wa, 141, PY - 22, 18, 12)
+    W.over:hidden(k) -- white flash only for the AI's blade
   elseif not p.cut then
-    p.cut = true
-    W.over:hidden(true); a.wa:hidden(true); W.pool:hidden(false)
-    p.x, p.y, p.vx, p.vy = 150, PY - 27, -1.6, -5
+    p.cut = kw
+    W.over:hidden(true); a.wa:hidden(true); W.pool:hidden(k)
+    p.x, p.y, p.vx, p.vy = 150, k and PY or PY - 27, k and 4 or -1.6, k and -7 or -5
   else
     while acc >= STEP do
       acc = acc - STEP
-      p.vy = p.vy + G; p.x, p.y = p.x + p.vx, p.y + p.vy
-      if p.vy > 0 and p.y > PY - 5 and p.x > PX1 and p.x < PX2 then p.y, p.vy, p.vx = PY - 5, -p.vy * 0.4, p.vx * 0.7 end
+      if p.y < 300 then
+        p.vy = p.vy + G; p.x, p.y = p.x + p.vx, p.y + p.vy
+        if p.vy > 0 and p.y > PY - 5 and p.x > PX1 and p.x < PX2 then p.y, p.vy, p.vx = PY - 5, -p.vy * 0.4, p.vx * 0.7 end
+      end
     end
-    local pw = math.min(60, floor((t - 6700) / 60) + 4)
+    if p.cut == 1 and p.x > 240 then p.cut = 3; theme(1) end -- win: daytime once the AI is off screen
+    local pw = min(60, (t - 6700) // 60 + 4)
     wb(W.pool, 150 - pw / 2, PY - 4, pw, 4)
-    if t >= 7800 and typ(W.msg, "It's our time now", t - 7800) and t >= 11500 then st = "ko"; hint(RM) end
+    if t >= 7800 and typ(W.msg, k and "Humanity is safe at last." or "It's our time now", t - 7800) and t >= 11500 then st = 5; hint(RM) end
   end
-  wb(W.plat, PX1, PY, PX2 - PX1, 10); wb(W.dirt, PX1 + 4, PY + 10, PX2 - PX1 - 8, 12)
-  wb(a.wb, a.x - 7, PY - 22, 14, 22); wb(a.wh, a.x - 5, PY - 32, 10, 10)
-  if p.cut then wb(p.wb, 139, PY - 10, 22, 10); wb(p.wh, p.x - 5, p.y - 5, 10, 10)
-  else wb(p.wb, p.x - 7, PY - 22, 14, 22); wb(p.wh, p.x - 5, PY - 32, 10, 10) end
-end
-
-local function theme()
-  local t = TH[di]
-  for k = 1, 4 do W.sky[k]:style({bg_color = t[k]}); W.hill[k]:style({bg_color = t[5], radius = t[6]}) end
-  for k = 1, 6 do W.cl[k]:style({bg_color = t[7]}) end
-  for k = 1, 10 do W.star[k]:hidden(not t[8]); W.star[k]:style({bg_color = t[8] or 0}) end
-  W.orb:hidden(not t[9])
-  if t[9] then W.orb:set_size(t[10], t[11]); W.orb:set_pos(t[12], t[13]); W.orb:style({bg_color = t[9], radius = floor(t[11] / 2)}) end
-  W.plat:style({bg_color = t[14]}); W.plat:set_border(t[16], di == 3 and 2 or 0)
-  W.dirt:style({bg_color = t[15]})
-  W.dif:set_text("Difficulty:   <  " .. DIFF[di][1] .. "  >")
-end
-
-local function menu()
-  st = "menu"
-  W.msg:set_text("")
-  hint("Left / Right  difficulty        A  start")
-  place(true)
-end
-
-local function start(now)
-  local d = DIFF[di]
-  place(false)
-  F[2].spd, F[2].cd, F[2].bp, F[2].pun, F[2].hop, F[2].tm, F[2].rec = d[2], d[3], d[4], d[5], d[6], d[7], di > 1
-  st, ct, cn = "count", now, -1
-  hint("")
+  frame()
 end
 
 local function ainp(f, o)
-  local n, dx = f.inp, o.x - f.x
-  local ad = math.abs(dx)
+  local n, dx, rnd = f.inp, o.x - f.x, badge.sys.random
+  local ad, live = math.abs(dx), o.dead == 0
   n.l, n.r, n.atk, n.up = false, false, false, false
-  if o.dead == 0 and ad > 26 then
+  if live and ad > 26 then
     if dx < 0 then n.l = true else n.r = true end
   elseif not f.air then
     f.face = dx < 0 and -1 or 1
   end
   f.t = f.t - 1
-  local rdy = o.dead == 0 and f.t <= 0
-  if (rdy and ad < 30 and badge.sys.random(100) < f.tm) or (rdy and f.tm < 50 and ad < 70 and badge.sys.random(100) < 1)
-    or (f.pun and o.dead == 0 and o.atk == 10 and ad < 36) then n.atk = true; f.t = f.cd end
+  if live and (f.t <= 0 and (ad < 30 and rnd(100) < f.tm or f.tm < 50 and ad < 70 and rnd(100) < 1)
+    or f.hop and o.atk == 10 and ad < 36) then n.atk = true; f.t = f.cd end
   if f.bt > 0 then f.bt = f.bt - 1 end
-  if o.atk == 1 and ad < 44 and badge.sys.random(100) < f.bp then f.bt = 14 end
+  if o.atk == 1 and ad < 44 and rnd(100) < f.bp then f.bt = 14 end
   n.blk = f.bt > 0
   if f.air then
-    if f.x < PX1 then n.r, n.l = true, false elseif f.x > PX2 then n.l, n.r = true, false end
-    n.up = f.rec and f.dj and (f.x < PX1 or f.x > PX2)
-    if f.hop and f.dj and f.vy > 0 and badge.sys.random(100) < 4 then n.up = true end
-  elseif f.hop and f.bt == 0 and badge.sys.random(100) < 2 then
+    local l, r = f.x < PX1, f.x > PX2
+    if l or r then n.r, n.l = l, r end
+    n.up = f.rec and f.dj and (l or r)
+    if f.hop and f.dj and f.vy > 0 and rnd(100) < 4 then n.up = true end
+  elseif f.hop and f.bt == 0 and rnd(100) < 2 then
     n.up = true
   end
 end
@@ -186,8 +187,9 @@ local function step(f, o)
   if f.stun > 0 then f.stun = f.stun - 1 end
   if f.bcd > 0 then f.bcd = f.bcd - 1 end
   local free = f.stun == 0 and f.atk == 0
-  if f.blk and not (n.blk and free and not f.air) then f.blk = false; f.bcd = 10 end
-  if not f.blk and n.blk and free and not f.air and f.bcd == 0 then f.blk = true end
+  local canb = n.blk and free and not f.air
+  if f.blk and not canb then f.blk = false; f.bcd = 10 end
+  if not f.blk and canb and f.bcd == 0 then f.blk = true end
   if free and not f.blk then
     if n.l then f.vx = -WALK * f.spd; f.face = -1
     elseif n.r then f.vx = WALK * f.spd; f.face = 1
@@ -198,7 +200,7 @@ local function step(f, o)
     f.vx = f.vx * 0.6
   end
   if f.atk > 0 then f.atk = f.atk + 1; if f.atk > 17 then f.atk = 0 end end
-  f.vy = math.min(f.vy + G, 9)
+  f.vy = min(f.vy + G, 9)
   f.x, f.y = f.x + f.vx, f.y + f.vy
   local on = f.x > PX1 - 6 and f.x < PX2 + 6
   if f.vy > 0 and f.y - f.vy <= PY and f.y >= PY and on then
@@ -225,129 +227,123 @@ local function step(f, o)
     hudup()
     if f.stk == 0 then
       kw, sn = o.i, -1
-      local e = END[di][kw]
-      if e then
-        st, ct, sub = "ko", last, e
+      if di < 3 then -- end lines: win, loss per difficulty; AGI plays a cutscene instead
+        st, ct, sub = 5, last, ({"You beat AI from 2022...\nGo stop the agents\nfrom taking action", "Sigh, humanity never\nstood a chance...",
+          "You beat modern AI, but the\nbubble hasn't popped just yet.", "It was fun while it lasted"})[di * 2 + kw - 2]
         W.msg:set_text(kw == 1 and "YOU WIN!" or "AI WINS")
       else
-        st, ct, sub, f.cut, o.x, o.dead = "cut", last, nil, false, 236, 0
-        f.wa:hidden(true); o.wa:hidden(true)
-        for i = 1, 2 do hud[i]:hidden(true); for k = 1, 3 do hearts[i][k]:hidden(true) end end
-        for k = 1, 4 do W.hill[k]:hidden(true) end
-        W.msg:set_text(""); W.msg:style({text_color = 0xff2020})
-        W.over:style({bg_color = 0xffffff, bg_opa = 230})
-        o.wa:style({bg_color = 0xff2020})
+        o.x, o.dead, o.atk, f.atk, sub = kw == 1 and 64 or 236, 0, 0, 0, nil
+        place(4, last)
       end
     else
-      f.dead, f.atk, f.blk = 50, 0, false
-      W.msg:set_text((f.i == 1 and "You" or "AI") .. " fell!")
+      f.dead = 50; f.atk = 0; f.blk = false
+      W.msg:set_text(NM[f.i] .. " fell!")
     end
   end
 end
 
 local function leds(now)
-  badge.led.clear()
-  if st == "menu" then
-    local c = DC[di]
-    badge.led.set_all(c[1], c[2], c[3])
-  elseif st == "count" then
-    local v = 200 - 50 * cn
-    if cn == 0 then badge.led.set_all(0, 150, 0) else badge.led.set_all(v, v, v) end
-  elseif st == "cut" then
-    local t = now - ct
-    if t >= 6500 and t < 6700 then badge.led.set_all(255, 255, 255)
-    else badge.led.set_all(floor(t / 400) % 2 == 0 and 200 or 30, 0, 0) end
-  elseif st == "ko" then
-    local c = BC[kw]
-    badge.led.set_all(floor(c / 65536), floor(c / 256) % 256, c % 256)
-  else
-    for i = 1, 2 do
-      local f = F[i]
-      local t = math.min(f.dmg, 100) / 50
-      local r, g, b = floor(150 * math.min(1, t)), floor(150 * math.min(1, 2 - t)), 0
+  local r, g, b = 0, 0, 0
+  if st == 3 then  -- play: each side shows its fighter's damage, white flash on hit
+    for k = 1, 6 do -- LEDs 1, 6, 5 are the player's side, 2, 3, 4 the AI's
+      local f = F[k % 5 < 2 and 1 or 2]
+      local t = min(f.dmg, 100) / 50
+      r, g, b = floor(150 * min(1, t)), floor(150 * min(1, 2 - t)), 0
       if now < f.flash then r, g, b = 200, 200, 200 end
-      for k = 1, 3 do badge.led.set(SIDE[i][k], r, g, b) end
+      L.set(k, r, g, b)
     end
+  else
+    if st == 1 then
+      r, g, b = string.byte("\x00\x5a\x1e\x6e\x5a\x00\x78\x00\x14", di * 3 - 2, di * 3) -- menu colour per difficulty
+    elseif st == 2 then
+      r = 200 - 50 * cn
+      g, b = r, r
+      if cn == 0 then r, g, b = 0, 150, 0 end
+    elseif st == 4 then
+      local t = now - ct
+      r = t // 400 % 2 == 0 and 200 or 30
+      g = kw % 2 * r -- red pulse for the AI, yellow for the human
+      if kw == 2 and t >= 6500 and t < 6700 then r, g, b = 255, 255, 255 end
+    else
+      local c = FC[kw]
+      r, g, b = c >> 16, c >> 8 & 255, c & 255
+    end
+    L.set_all(r, g, b)
   end
-  badge.led.show()
+  L.show()
 end
 
-local function box(root, w, h, x, y, c, r)
-  local b = badge.ui.box(root, w, h)
+local R
+local function box(w, h, x, y, c, r)
+  local b = badge.ui.box(R, w, h)
   b:set_pos(x, y)
   b:style({bg_color = c, radius = r})
   return b
 end
 
-local function label(root, text, font, alx, al, dx, dy)
-  local l = badge.ui.label(root, text)
-  l:style({text_font = font, text_align = alx})
-  l:align(al, dx, dy)
-  return l
-end
-
 function on_enter(root)
-  B = badge.input.BUTTON
-  local s = badge.sys.stats()
-  badge.sys.log("lua=" .. s.lua_used .. " peak=" .. s.lua_peak .. " free=" .. s.free_heap)
+  B, R, L = badge.input.BUTTON, root, badge.led
   W.sky, W.hill, W.cl, W.star = {}, {}, {}, {}
-  for k = 1, 4 do W.sky[k] = box(root, 320, 60, 0, k * 60 - 60, 0, 0) end
-  for k = 1, 4 do local h = HILL[k]; W.hill[k] = box(root, h[2], h[3], h[1], 240 - h[3], 0, 0) end
-  for k = 1, 10 do W.star[k] = box(root, 3, 3, (k * 61) % 310 + 4, (k * 37) % 90 + 6, 0, 1) end
-  W.orb = box(root, 10, 10, 0, 0, 0, 0)
-  for k = 1, 3 do
-    W.cl[k] = box(root, 56, 14, k * 100 - 80, CLY[k], 0, 7)
-    W.cl[k + 3] = box(root, 26, 14, k * 100 - 64, CLY[k] - 8, 0, 7)
+  for k = 1, 4 do W.sky[k] = box(320, 60, 0, k * 60 - 60, 0, 0) end
+  for k = 1, 4 do -- hill x (int16), w, h
+    local x, w, h = string.unpack(">hBB", "\xff\xec\x78\x46\x00\x50\x8c\x32\x00\xbe\x96\x50\x01\x2c\x3c\x28", k * 4 - 3)
+    W.hill[k] = box(w, h, x, 240 - h, 0, 0)
   end
-  W.dirt = box(root, PX2 - PX1 - 8, 12, PX1 + 4, PY + 10, 0, 3)
-  W.plat = box(root, PX2 - PX1, 10, PX1, PY, 0, 0)
+  for k = 1, 10 do W.star[k] = box(3, 3, (k * 61) % 310 + 4, (k * 37) % 90 + 6, 0, 1) end
+  W.orb = box(10, 10, 0, 0, 0, 0)
+  for k = 1, 3 do
+    local y = string.byte("\x28\x16\x3e", k) -- cloud row y
+    W.cl[k] = box(56, 14, k * 100 - 80, y, 0, 7)
+    W.cl[k + 3] = box(26, 14, k * 100 - 64, y - 8, 0, 7)
+  end
+  W.dirt = box(PX2 - PX1 - 8, 12, PX1 + 4, PY + 10, 0, 3)
+  W.plat = box(PX2 - PX1, 10, PX1, PY, 0, 0)
   for i = 1, 2 do
-    local f = {i = i, face = 3 - 2 * i, stk = 3, flash = 0, inp = {}, t = 0, spd = 1, cd = 60, bp = 0, tm = 100}
-    f.wb = box(root, 14, 22, 0, -50, BC[i], 2)
-    f.wh = box(root, 10, 10, 0, -50, HC[i], 3)
-    f.wa = box(root, 18, 12, 0, -50, 0xffffff, 2)
-    hud[i] = badge.ui.label(root, "")
+    local f = {i = i, flash = 0, inp = {}, t = 0, spd = 1}  -- the rest is set by spawn()/place()
+    f.wb = box(14, 22, 0, -50, FC[i], 2)
+    f.wh = box(10, 10, 0, -50, FC[i + 2], 3)
+    f.wa = box(18, 12, 0, -50, FC[i], 2)
+    hud[i] = badge.ui.label(R, "")
     hud[i]:style({text_font = 20})
     hud[i]:set_pos(i == 1 and 8 or 240, 6)
     hearts[i] = {}
     for k = 1, 3 do
-      hearts[i][k] = box(root, 10, 10, (i == 1 and 10 or 260) + (k - 1) * 18, 34, 0xff3355, 5)
+      hearts[i][k] = box(10, 10, (i == 1 and 10 or 260) + (k - 1) * 18, 34, 0xff3355, 5)
     end
-    tag[i] = badge.ui.label(root, i == 1 and "YOU" or "AI")
+    tag[i] = badge.ui.label(R, i == 1 and "YOU" or "AI")
     tag[i]:style({text_font = 14, text_color = 0xffffff})
+    tag[i]:set_pos(i * 100 - 4, PY - 54)
     F[i] = f
   end
-  W.pool = box(root, 4, 4, -10, -10, 0xd01020, 2)
-  W.over = box(root, 320, 240, 0, 0, 0x000000, 0)
-  W.over:style({bg_opa = 130})
-  W.title = label(root, "HUMANITY'S\nLAST FIGHT", 24, "center", "top_mid", 0, 6)
+  W.pool = box(4, 4, -10, -10, 0xd01020, 2)
+  W.over = box(320, 240, 0, 0, 0x000000, 0)
+  for k, tx, fo, ax, al, dx, dy in ("title|HUMANITY'S\nLAST FIGHT|24|center|top_mid|0|6;keys|Left / Right\nUp\nA\nB|16|right|right_mid|-170|-6;"
+    .. "acts|move\njump  (twice)\nattack\nblock|16|left|left_mid|168|-6;dif||20|center|center|0|66;hint||14|center|bottom_mid|0|-8;"
+    .. "msg||24|center|center|0|-64;sub||16|center|center|0|-14"):gmatch("(%a+)|([^|]*)|(%d+)|(%a+)|([%a_]+)|(-?%d+)|(-?%d+)") do
+    local l = badge.ui.label(R, tx)
+    l:style({text_font = tonumber(fo), text_align = ax}); l:align(al, tonumber(dx), tonumber(dy))
+    W[k] = l
+  end
   W.title:style({text_color = 0xffd23f})
-  W.keys = label(root, "Left / Right\nUp\nA\nB", 16, "right", "right_mid", -170, -6)
-  W.acts = label(root, "move\njump  (twice)\nattack\nblock", 16, "left", "left_mid", 168, -6)
-  W.dif = label(root, "", 20, "center", "center", 0, 66)
-  W.hint = label(root, "", 14, "center", "bottom_mid", 0, -8)
-  W.msg = label(root, "", 24, "center", "center", 0, -64)
-  W.sub = label(root, "", 16, "center", "center", 0, -14)
-  theme()
-  menu()
+  place(1)
 end
 
 function on_tick()
   local now = badge.sys.ms()
   if last == 0 then last = now end
-  acc = math.min(acc + now - last, STEP * 3)
+  acc = min(acc + now - last, STEP * 3)
   last = now
-  if st == "count" then
-    local n = 3 - floor((now - ct) / 1000)
+  if st == 2 then
+    local n = 3 - (now - ct) // 1000
     if n < 1 then n = 0 end
     if n ~= cn then cn = n; W.msg:set_text(n > 0 and tostring(n) or "FIGHT!") end
     if now - ct >= 3600 then
-      st, acc = "play", 0
+      st, acc = 3, 0
       W.msg:set_text("")
       tag[1]:hidden(true); tag[2]:hidden(true)
     end
-  elseif st == "play" then
-    while acc >= STEP do
+  elseif st == 3 then
+    while acc >= STEP and st == 3 do
       acc = acc - STEP
       local n = F[1].inp
       n.l, n.r = badge.input.is_down(B.LEFT), badge.input.is_down(B.RIGHT)
@@ -355,10 +351,10 @@ function on_tick()
       ainp(F[2], F[1])
       step(F[1], F[2]); step(F[2], F[1])
     end
-    draw(F[1]); draw(F[2])
-  elseif st == "cut" then
+    frame()
+  elseif st == 4 then
     cut(now)
-  elseif st == "ko" and sub then
+  elseif st == 5 and sub then
     if typ(W.sub, sub, now - ct - 800) then sub = nil; hint(RM) end
   end
   if now >= ledt then ledt = now + 50; leds(now) end
@@ -366,20 +362,16 @@ end
 
 function on_button(b, kind)
   if kind ~= badge.input.KIND.PRESSED then return end
-  local now = badge.sys.ms()
-  if st == "menu" then
-    if b == B.LEFT or b == B.RIGHT then di = (di + (b == B.LEFT and 1 or 0)) % 3 + 1; theme()
-    elseif b == B.A then start(now) end
-  elseif st == "ko" then
-    if b == B.A then start(now) elseif b == B.B or b == B.START then menu() end
-  elseif st == "play" then
-    if b == B.A then pa = true elseif b == B.UP then pu = true elseif b == B.START then menu() end
-  elseif b == B.START then
-    menu()
+  if b == B.A and (st == 1 or st == 5) then place(2, badge.sys.ms())
+  elseif b == B.START and st ~= 1 or b == B.B and st == 5 then place(1)
+  elseif st == 1 then
+    if b == B.LEFT or b == B.RIGHT then di = (di + (b == B.LEFT and 1 or 0)) % 3 + 1; theme() end
+  elseif st == 3 then
+    if b == B.A then pa = true elseif b == B.UP then pu = true end
   end
 end
 
 function on_exit()
-  badge.led.clear()
-  badge.led.show()
+  L.clear()
+  L.show()
 end

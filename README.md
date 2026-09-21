@@ -18,7 +18,7 @@ Pick a difficulty on the title screen. Each one is a different opponent and a di
 | **AGENT** | Modern AI. Faster, blocks, jumps back to the stage when knocked off. | Sunset |
 | **AGI** | Punishes your whiffs, double-jumps, reads your attacks. | Something has gone wrong |
 
-Try beating AGI if you can (even I haven't been able to yet)
+Try beating AGI if you can (even I haven't been able to yet). There is a proper ending waiting if you do.
 
 ### Controls
 
@@ -56,7 +56,7 @@ If you would like to learn more, read [IMPLEMENTATION.md](IMPLEMENTATION.md). It
 
 You need a desktop Chrome or Edge browser, a USB-C **data** cable, and the badge IDE at **https://badge.hackthenorth.com/ide/**.
 
-1. Copy the entire contents of [`last_fight.lua`](last_fight.lua), including the `--[==[badge-app ... ]==]` header at the top.
+1. Copy the entire contents of [`last_fight.min.lua`](last_fight.min.lua), including the `--[==[badge-app ... ]==]` header at the top. Always use the minified file when building from scratch: it is the same program as [`last_fight.lua`](last_fight.lua) with comments and spacing removed, so it is a third smaller to paste. The readable file is the one to read or edit.
 2. Open the [Badge IDE](https://badge.hackthenorth.com/ide/). If you have work in the editor already, save it first with **Download app**.
 3. Click **Import app** and paste the whole file. Check that the slug shows as `last_fight`, then click **Replace editor files**.
 4. Optional but recommended: download [`icon.png`](icon.png) from this repo, click **Choose image** in the IDE, and select it. This gives the game a proper launcher icon instead of the `HLF` text fallback. The image is already 42×42, the badge's icon size, so it needs no cropping.
@@ -65,7 +65,17 @@ You need a desktop Chrome or Edge browser, a USB-C **data** cable, and the badge
 7. Click **Push** and keep the cable connected until the upload finishes.
 8. Find **Humanity's Last Fight** in the badge launcher and press **A**.
 
-**Troubleshooting:** if the app fails to open with `Lua memory limit exceeded` in the IDE console, the badge did not have enough free RAM to compile the file. Reboot the badge and try opening the app again straight from the launcher. 
+**Troubleshooting:** if the app fails to open with `Lua memory limit exceeded` in the IDE console, the badge did not have enough free RAM to compile the file. Reboot the badge and try opening the app again straight from the launcher.
+
+### Editing the game
+
+Edit `last_fight.lua`, then regenerate the minified build before pushing or committing:
+
+```
+python3 tools/minify.py last_fight.lua > last_fight.min.lua
+```
+
+The minifier keeps every line number, so an error line reported by the badge points at the same line in the readable file. Two more checks are worth running (both need a desktop Lua 5.4, for example `brew install lua@5.4`): `luac5.4 -s -o /tmp/x.luac last_fight.lua && wc -c /tmp/x.luac` gives the compiled size, which has to stay under roughly 14.8 KB or the badge cannot compile it, and `tools/trace.lua` records a full simulated play-through so you can `cmp` the game's visual behaviour before and after a change. [IMPLEMENTATION.md](IMPLEMENTATION.md) has the details.
 
 ## Share it with others :)
 
