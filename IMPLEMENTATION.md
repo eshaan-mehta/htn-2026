@@ -129,7 +129,7 @@ A fighter is three boxes anchored to its feet position `(x, y)`:
 
 The HUD is two labels ("You 30%", "AI 10%") at the top corners and three 10x10 red dots per side for stocks. `hudup()` rewrites both labels and hides dots for lost stocks. It runs only when something changed: a hit or a fall.
 
-The menu draws over the live stage. The black overlay at 170/255 opacity dims everything behind it, and the title, control legend, and difficulty selector sit on top. Because the stage underneath is real, changing difficulty in the menu previews that stage's environment through the dim.
+The menu draws over the live stage. The black overlay at 130/255 opacity dims everything behind it, and the title, control legend, and difficulty selector sit on top. Because the stage underneath is real, changing difficulty in the menu previews that stage's environment through the dim.
 
 Labels use fonts 14, 16, 20, and 24. Multi-line text uses explicit `\n` breaks rather than relying on wrapping.
 
@@ -270,7 +270,7 @@ Every object on the platform (platform, dirt, both fighters, the blade, the pool
 | 7800 | "It's our time now" types into the red message label. |
 | 11500 | State becomes `ko`. Rematch prompt appears. |
 
-Start skips to the menu at any point. `place()`, which both the menu and a rematch call, undoes everything the cutscene changed: `Z` back to 1, fighter box sizes, blade color, overlay back to black at 170, message color white, hills shown, pool hidden.
+Start skips to the menu at any point. `place()`, which both the menu and a rematch call, undoes everything the cutscene changed: `Z` back to 1, fighter box sizes, blade color, overlay back to black at 130, message color white, hills shown, pool hidden.
 
 ## 13. LEDs
 

@@ -87,7 +87,7 @@ local function place(m)
     tag[i]:hidden(m)
   end
   W.over:hidden(not m); W.title:hidden(not m); W.keys:hidden(not m); W.acts:hidden(not m); W.dif:hidden(not m)
-  W.over:style({bg_color = 0, bg_opa = 170}); W.msg:style({text_color = 0xffffff}); W.sub:set_text("")
+  W.over:style({bg_color = 0, bg_opa = 130}); W.msg:style({text_color = 0xffffff}); W.sub:set_text("")
   W.pool:hidden(true)
   hudup()
 end
@@ -319,7 +319,7 @@ function on_enter(root)
   end
   W.pool = box(root, 4, 4, -10, -10, 0xd01020, 2)
   W.over = box(root, 320, 240, 0, 0, 0x000000, 0)
-  W.over:style({bg_opa = 170})
+  W.over:style({bg_opa = 130})
   W.title = label(root, "HUMANITY'S\nLAST FIGHT", 24, "center", "top_mid", 0, 6)
   W.title:style({text_color = 0xffd23f})
   W.keys = label(root, "Left / Right\nUp\nA\nB", 16, "right", "right_mid", -170, -6)
