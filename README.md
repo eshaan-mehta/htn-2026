@@ -39,10 +39,6 @@ Try beating AGI if you can (even I haven't been able to yet). There is a proper 
 | B (hold) | Block. Blocking only works on the ground and only from the front. Releasing it puts you on a short cooldown. |
 | Start | Back to the title screen |
 
-**God mode**
-
-Flip the small switch next to the USB-C port at any time to toggle god mode for the next fight. The AI starts at 200 % damage with a single stock and never blocks, so any hit rings it out. Whatever position the switch is in when the game opens counts as normal; each flip after that toggles. Flip it again to go back to a fair fight.
-
 **After a KO**
 
 | Button | Action |
@@ -71,6 +67,10 @@ You need a desktop Chrome or Edge browser, a USB-C **data** cable, and the badge
 
 **Troubleshooting:** if the app fails to open with `Lua memory limit exceeded` in the IDE console, the badge did not have enough free RAM to compile the file. Reboot the badge and try opening the app again straight from the launcher.
 
+**God mode**
+
+Flip the small switch next to the USB-C port at any time to toggle god mode for the next fight. AI only have 1 life and be one shot to any punch. Mainly here so you can skip to the end credits if you can't beat AGI.
+
 ### Editing the game
 
 Edit `last_fight.lua`, then regenerate the minified build before pushing or committing:
@@ -79,7 +79,7 @@ Edit `last_fight.lua`, then regenerate the minified build before pushing or comm
 python3 tools/minify.py last_fight.lua > last_fight.min.lua
 ```
 
-The minifier keeps every line number, so an error line reported by the badge points at the same line in the readable file. Two more checks are worth running (both need a desktop Lua 5.5, the version the badge runs, for example `brew install lua`): `luac -s -o /tmp/x.luac last_fight.lua && wc -c /tmp/x.luac` gives the compiled size, which has to stay under roughly 14.0 KB or the badge cannot compile it, and `tools/trace.lua` records a full simulated play-through so you can `cmp` the game's visual behaviour before and after a change. [IMPLEMENTATION.md](IMPLEMENTATION.md) has the details.
+The minifier keeps every line number, so an error line reported by the badge points at the same line in the readable file.
 
 ## Share it with others :)
 
