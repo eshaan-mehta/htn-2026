@@ -235,8 +235,8 @@ hudup()
 if f.stk==0 then
 kw,sn=o.i,-1
 if di<3 then
-st,ct,sub=5,last,({"You beat AI from 2022...\nGo stop the agents\nfrom taking action","Sigh, humanity never\nstood a chance...",
-"You beat modern AI, but the\nbubble hasn't popped just yet.","It was fun while it lasted"})[di*2+kw-2]
+st,ct,sub=5,last,({"You beat AI from 2022...\nBut agents have taken over now","Damn, I guess humanity\nnever stood a chance.",
+"Yay! It was just a bubble after all.\nOr maybe not...","It was fun while it lasted."})[di*2+kw-2]
 W.msg:set_text(kw==1 and"YOU WIN!"or"AI WINS")
 else
 o.x,o.dead,o.atk,f.atk,sub=kw==1 and 64 or 236,0,0,0,nil
