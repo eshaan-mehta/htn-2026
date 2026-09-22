@@ -102,7 +102,7 @@ frame()
 
 `acc` accumulates real time. The loop consumes it in 20 ms chunks so physics is deterministic no matter the frame rate. The cap at three steps means a long stall slows the game briefly instead of running a burst of catch-up steps. The `st == 3` guard stops the loop the moment a step ends the fight, so a slow tick cannot run a second step over the KO. Rendering happens once per tick, after the steps.
 
-Input has two paths. Held buttons (Left, Right, B for block) are polled with `is_down` at each step. Presses (A for attack, Up for jump) arrive through `on_button` and are latched into `pa` and `pu`. The next step consumes and clears them. A press between steps is never lost and never counted twice.
+Input has two paths. Held buttons (Left, Right, B for block) are polled with `is_down` at each step. Presses (A for attack, Up for jump) arrive through `on_button`, which writes them straight into your input table as `atk` and `up`. The step loop clears them after each step. A press between steps is never lost and never counted twice.
 
 ## 5. Rendering with boxes
 
@@ -143,15 +143,16 @@ Labels use fonts 14, 16, 20, and 24. Multi-line text uses explicit `\n` breaks r
 
 ## 6. Stage themes
 
-All three environments share one set of widgets. The theme data is a 114-byte binary string, 38 bytes per difficulty, laid out big-endian:
+All three environments share one set of widgets. The difficulty data is a 126-byte binary string, 42 bytes per difficulty, laid out big-endian:
 
 ```
 sky1 sky2 sky3 sky4 hill   (3 bytes each)   hillRadius (1)
 cloud star orb            (3 each, 0 = none)  orbSize orbX orbY (1 each)
 platform dirt border      (3 each)           borderWidth (1)
+aiSpeed aiCooldown aiBlock aiAggression (1 each, section 10)
 ```
 
-`theme(d)` unpacks the row for difficulty `d` with one `string.unpack` call into sixteen locals and restyles the widgets from them. Switching environments is a data change, not new code, which is why three stages fit in the memory budget. `d` defaults to the selected difficulty; the win cutscene passes 1 to bring back the daytime stage, and the next `place()` restores the real one.
+`theme(d)` unpacks the row for difficulty `d` with one `unpack` call into twenty locals, restyles the widgets from the first sixteen and writes the AI's parameters from the last four. Switching environments is a data change, not new code, which is why three stages fit in the memory budget. `d` defaults to the selected difficulty; the win cutscene passes 1 to bring back the daytime stage, and the next `place()` restores the real one.
 
 | | CHATBOT | AGENT | AGI |
 |---|---|---|---|
@@ -199,7 +200,7 @@ Starting an attack on the ground stops horizontal movement. Attacks are allowed 
 
 The hit test runs during active frames, once per swing (the `hit` flag). It hits when the opponent is alive and within 16 px horizontally of a point 16 px in front of the attacker and within 22 px vertically.
 
-Blocking is B held on the ground while free to act, with no cooldown pending. Letting go, or losing the ground, drops the block and starts a 10-step cooldown (`bcd`), so it cannot be held forever or tapped repeatedly. A block only counts against attacks from the front: `d * o.face < 0`, where `d` is the direction from attacker to defender. A blocked hit pushes the defender back 2 px per step for a moment and does nothing else.
+Blocking is B held on the ground while free to act, with no cooldown pending. Letting go, or losing the ground, drops the block and starts a 10-step cooldown (`bcd`), so it cannot be held forever or tapped repeatedly. The stun, block-cooldown and AI timers count down every step without a floor, so `<= 0` means expired and idle fighters carry negative counters. A block only counts against attacks from the front: `d * o.face < 0`, where `d` is the direction from attacker to defender. A blocked hit pushes the defender back 2 px per step for a moment and does nothing else.
 
 An unblocked hit:
 
@@ -216,13 +217,13 @@ Knockback and stun scale with accumulated damage. At 50% a hit sends the victim 
 
 Each fighter starts with three stocks. Falling below the screen or far past either side removes one. If stocks remain, the fighter goes into a 50-step (1 s) dead state, hidden off-screen, then respawns above the platform centre and falls in. The message "You fell!" or "AI fell!" shows until respawn.
 
-When a fighter loses its last stock, `kw` becomes the winner's index. On CHATBOT and AGENT the game goes straight to state 5 with a headline and one of four flavour lines, indexed by `di * 2 + kw - 2`. On AGI, either outcome starts a cutscene: the KO handler parks the winner off-screen on its own side, zeroes both attack counters so no attack box lingers, and calls `place(4)`.
+When a fighter loses its last stock, `kw` becomes the winner's index. The end line for every difficulty and outcome comes from one six-entry table indexed by `di * 2 + kw - 2` and is stored in `sub`. On CHATBOT and AGENT the game goes straight to state 5 with a headline, and the line types in below it. On AGI, either outcome starts a cutscene, which types the same `sub` into the message label: the KO handler zeroes both attack counters so no attack box lingers, clears the winner's respawn timer, and calls `place(4)`.
 
 ## 10. The AI
 
 `ainp(f, o)` runs once per step before `step()`. It writes into the AI's input table exactly like a controller would, so the AI has no physics advantages. Its edge is reaction time and the fact that it reads the player's attack counter directly.
 
-The per-difficulty parameters are a 12-byte string, four bytes per difficulty: speed times 20, attack cooldown, block chance, aggression. `place()` decodes the row with `string.byte` and sets two flags from the difficulty index.
+The per-difficulty parameters are the last four bytes of the difficulty row in section 7: speed times 20, attack cooldown, block chance, aggression. `theme()` writes them into the AI fighter whenever it applies a row (the win cutscene's `theme(1)` briefly writes CHATBOT's values, after the fight is over; the next `place()` restores the real ones).
 
 | Parameter | CHATBOT | AGENT | AGI | Meaning |
 |---|---|---|---|---|
@@ -230,8 +231,10 @@ The per-difficulty parameters are a 12-byte string, four bytes per difficulty: s
 | `cd` | 90 | 45 | 38 | Steps between attacks |
 | `bp` | 0 | 30 | 65 | Percent chance to block a swing it sees starting |
 | `tm` | 5 | 40 | 100 | Percent chance per step to attack when in range and off cooldown |
-| `hop` | no | no | yes | Punishes recovery frames, random jumps and air hops |
-| `rec` | no | yes | yes | Uses double jump to get back to the platform |
+| hop (`di == 3`) | no | no | yes | Punishes recovery frames, random jumps and air hops |
+| recover (`di > 1`) | no | yes | yes | Uses double jump to get back to the platform |
+
+The first four live in fighter fields. The last two are tests on `di` written where they are used, since the difficulty cannot change during a fight.
 
 Behaviour each step:
 
@@ -248,7 +251,7 @@ CHATBOT never blocks, never recovers, and attacks about once every two seconds i
 
 On a KO on CHATBOT or AGENT, the headline "YOU WIN!" or "AI WINS" appears at once in font 24. After 800 ms the flavor line types in below it at 140 ms per character. The rematch prompt appears only when the line is complete.
 
-`typ(w, tx, t)` does the typing. Given a widget, the full text, and elapsed milliseconds, it computes how many characters should be visible, and calls `set_text` only when that number changed since the last call (cached in `sn`). It returns true once the whole string is shown. Both cutscenes use the same function for their line.
+`typ(w, tx, t)` does the typing. Given a widget, the full text, and elapsed milliseconds, it computes how many characters should be visible, and calls `set_text` only when that number changed since the last call (cached in `sn`). It returns true once the whole string is shown. Both cutscenes use the same function for their line, typed into the message label instead of the sub line.
 
 ## 12. The AGI cutscenes
 
@@ -262,41 +265,43 @@ screen_y = PY  + (y - PY)  * Z
 size     = (ww * Z, hh * Z)
 ```
 
-Everything on the platform (platform, dirt, both fighters, the weapon, the pool) is drawn through `wb` each tick. Sky and stars are not scaled, which reads as distance. `Z` eases from 1 to 2.2 over 1.5 seconds with `u = 1 - min(1, t/1500); Z = 2.2 - 1.2 * u * u`.
+Everything on the platform (platform, dirt, both fighters, the weapon, the pool) is drawn through `wb` each tick. Sky and stars are not scaled, which reads as distance. `Z` eases from 1 to 2.2 over 1.5 seconds with `u = min(0, t - 1500); Z = 2.2 - u * u / 1875000` (`u` is the time left, so `u * u / 1500^2` is the same ease-out as `1.2 * (1 - t/1500)^2` with one fewer operation and no second float constant).
 
-**Setup at the KO** (`place(4)`). The winner is parked off-screen on its own side: the AI at world x 236, you at 64. Hills and clouds hide, so the sky stays clear behind the final line. HUD, stock dots, and both attack boxes hide. The AI's attack box is recolored red to become its blade. The overlay is recolored white at 230/255 but stays hidden. The message label turns red for a loss and stays white for a win.
+**Setup at the KO** (`place(4)`). Hills and clouds hide, so the sky stays clear behind the final line. HUD, stock dots, and both attack boxes hide. The AI's attack box is recolored red to become its blade. The overlay is recolored to fully opaque white but stays hidden. The winner is not moved here: the walk-in formula below places it from the first tick. The message label turns red for a loss and stays white for a win.
 
 **Timeline**, `t` in milliseconds since the KO:
 
 | t | Both endings | Loss only (AI attacks) | Win only (you attack) |
 |---|---|---|---|
 | 0 to 1500 | Zoom in. The victim trembles, x alternating 150 and 151 every 100 ms. | LEDs beat slow red. | LEDs beat slow yellow. |
-| 1500 to 2500 | Hold. | | |
-| 2500 to 5500 | The attacker walks in 60 world px at 0.02 px per ms. | From the right, 236 to 176. | From the left, 64 to 124. |
-| 5500 to 6500 | Weapon appears at body height in front of the attacker. | Blade holds still. | Fist winds up: pulls back 14 px over the second. |
-| 6500 to 6700 | Weapon snaps onto the victim's body at x 141. | White overlay covers the screen, all LEDs white. | You lunge 8 px forward. No flash. |
-| 6700 | Weapon hides. Aftermath begins. | Body becomes 22x10 lying flat. The head becomes a projectile at `(150, PY-27)` with velocity `(-1.6, -5)`. The pool appears. | The whole AI launches with velocity `(4, -7)`. No pool. |
-| 6700 onward | Fixed-step physics on the projectile: gravity, a bounce on the platform (`vy * -0.4`, `vx * 0.7`). Physics stops once it passes y 300. | The head rolls off the left edge. The pool widens from 4 to 60 world px over 3.4 s. | The AI arcs up and off the right edge in about 0.4 s. The first frame it is fully off-screen, `theme(1)` switches the stage to the CHATBOT daytime sky and sun. |
+| 0 to 5500 | The attacker walks in 110 world px at 0.02 px per ms, `x = max(176, 236 - (t - 2500) * 0.02)`, mirrored for you. It is in view at the edge for the first second, the zoom carries it off-screen, and it walks back in around 2.9 s. | From the right, 286 to 176. | From the left, 14 to 124. |
+| 5500 to 6500 | Weapon appears at body height in front of the attacker. | Blade holds still. | Wind-up: the fist snaps back 20 px in 200 ms (`a.x - min(14, t/10 - 556)`) and stays cocked for the remaining 800 ms. |
+| 6500 | Strike, one shot. Weapon snaps onto the victim's body at x 141. Then 200 ms of hitstop with nothing moving. | White overlay covers the screen. | You lunge 8 px forward. No flash. |
+| 6500 to 6700 | LEDs white (150) in both endings. | | |
+| 6700 | Launch, one shot. Overlay hides. | Blade hides. Body becomes 22x10 lying flat. The head becomes a projectile at `(150, PY-27)` with velocity `(-1.6, -5)`. The pool appears. | The fist stays extended. The whole AI launches with velocity `(7, -13)`. No pool. |
+| 6700 onward | Fixed-step physics on the projectile: gravity, a bounce whenever it comes down onto platform height (`vy * -0.4`, `vx * 0.7`). Physics stops once it passes y 300. | The head rolls off the left edge. The pool widens from 4 to 60 world px over 3.4 s. | The AI rockets off the top right corner in about 0.15 s. When it passes x 240, about 0.25 s after launch, `theme(1)` switches the stage to the CHATBOT daytime sky and sun. It keeps flying, and later bounces, far off-screen; the bounce has no x check because neither projectile is ever on screen when it comes back down. |
 | 7800 | The line types into the message label. | "It's our time now" in red. | "Humanity is safe at last." in white. |
-| 11500 | State 5. Rematch prompt appears. | LEDs red. | LEDs gold. |
+| 11500 | State 5. On the next tick the end-screen path in `on_tick` finds the line complete, clears `sub` and shows the rematch prompt. | LEDs red. | LEDs gold. |
 
-The one-shot moments use the victim's `cut` field: `nil` before the strike, the winner index after it, and 3 once the daytime switch has fired, so nothing runs twice on a jittery tick. `draw()` reads `cut == 2` for the lying-flat pose.
+The one-shot moments use the victim's `cut` field: `nil` before the strike, 0 during the hitstop, the winner index after the launch, and 3 once the daytime switch has fired, so nothing runs twice on a jittery tick.
+
+The strike must be a one-shot for more than tidiness. In LVGL, un-hiding an object that is already visible still invalidates its whole area, and the overlay is the whole screen. An earlier build called `W.over:hidden(false)` on every tick of the flash, so each of those ticks forced a full-screen redraw with the translucent white blended over every widget, on top of the six LEDs at full white. That build occasionally froze the badge on battery during the flash. Now the overlay is shown once, it is fully opaque so LVGL skips everything underneath it instead of blending, and the LEDs flash at 150, the same brightness the countdown already uses. `draw()` reads `cut == 2` for the lying-flat pose.
 
 Start skips to the menu at any point. `place()`, which the menu and a rematch call, undoes everything the cutscene changed: `Z` back to 1, attack box size and colour, overlay back to black at 130, message colour white, hills and clouds shown, pool hidden, and the real stage theme.
 
 ## 13. LEDs
 
-`leds(now)` runs every 50 ms. LEDs 1, 6 and 5 are your side and 2, 3 and 4 the AI's; the loop picks the fighter with `F[k % 5 < 2 and 1 or 2]`, which needs no lookup table.
+`leds(now)` runs every 50 ms. LEDs 1, 6 and 5 are your side and 2, 3 and 4 the AI's; the loop picks the fighter with a six-byte lookup string, `F[("\1\2\2\2\1\1"):byte(k)]`.
 
 | State | LEDs |
 |---|---|
-| 1 menu | Difficulty color: dim green, amber, or red, from a 9-byte string |
+| 1 menu | Difficulty color: dim green, amber, or red, rows 1 to 3 of a 15-byte colour string |
 | 2 countdown | White brightening with each count, green on FIGHT! |
 | 3 play | Each side fades green to red as that fighter's damage climbs from 0 to 100%. White for 100 ms after taking a hit. |
-| 4 cutscene | Heartbeat every 400 ms, red for the AI, yellow for you. All white during the blade strike. |
-| 5 ko | Winner's body color on all six |
+| 4 cutscene | Heartbeat every 400 ms, red for the AI, yellow for you. All six at 150 white for the 200 ms strike in either ending. |
+| 5 ko | Winner's body color on all six, rows 4 and 5 of the same string |
 
-The damage ramp is `t = min(dmg, 100) / 50`, red `150 * min(1, t)`, green `150 * min(1, 2 - t)`. The KO colour is split from the 0xRRGGBB integer with shifts and masks.
+The damage ramp is integer arithmetic: `t = min(dmg, 100) * 3`, red `min(150, t)`, green `min(150, 300 - t)`. Red reaches full at 50% damage, green reaches zero at 100%. An earlier float version of the same ramp produced 59 and 29 instead of 60 and 30 at 80% and 90% damage because of rounding; the integer form is smaller and exact.
 
 ## 14. Memory: the real budget
 
@@ -315,14 +320,14 @@ Used and peak are far below the 96 KiB quota. The message is the badge's generic
 Findings from that failure:
 
 - **Source text size does not matter.** A minified copy of the same file, with identical bytecode, failed the same way. Comments and whitespace cost nothing, which is also why `last_fight.min.lua` fits exactly as well as the readable file.
-- **Compiled size does.** Stripped bytecode from `luac -s` is the proxy. The largest build known to run was 13,994 bytes; the one that failed was 15,286. Treat 14.0 KB as the ceiling. The current file compiles to about 12.3 KB.
+- **Compiled size does.** Stripped bytecode from `luac -s` is the proxy. The largest build known to run was 13,994 bytes; the one that failed was 15,286. Treat 14.0 KB as the ceiling. The current file compiles to about 11.0 KB.
 - **Measure with the right Lua.** The badge runs Lua 5.5 (it logs `_VERSION` as `Lua 5.5`), which is also what Homebrew's `luac` is. Lua 5.4's `luac` stores integer constants in 9 bytes where 5.5 uses 2 to 5, so its numbers run about 6% high; use plain `luac`.
 
 Widgets are cheap, roughly 140 bytes each, and are allocated only after compilation succeeded. The game's fifty-two widgets are not the problem. Code is.
 
 ## 15. Optimizations
 
-The compiled size went from 13,994 bytes to about 12.3 KB, which is what paid for the win cutscene. Changes, roughly in order of how much they saved, all verified to leave the game's visible behaviour byte-for-byte identical with the harness in section 16:
+The compiled size went from 13,994 bytes to about 12.3 KB, which is what paid for the win cutscene, and a second pass took it to about 11.0 KB. Changes, roughly in order of how much they saved, all verified to leave the game's visible behaviour byte-for-byte identical with the harness in section 16:
 
 - **Data as strings, not tables.** Every integer literal outside the small immediate range, which includes every 0xRRGGBB colour, is a constant-table entry in each function that uses it, plus instructions to load it and store it into a table. Packing the theme rows, AI parameters, hill geometry, cloud rows and menu LED colours into binary strings and decoding them with `string.unpack` or `string.byte` costs 1 to 3 bytes per value. This was the single biggest win.
 - **One scene setup.** `menu()`, `start()` and the cutscene setup in the KO handler were three copies of the same hide-and-restyle work. They became `place(m, now)`, and states became integers so `st = m` is one store.
@@ -335,7 +340,29 @@ The compiled size went from 13,994 bytes to about 12.3 KB, which is what paid fo
 - **Dropping fields that are always set before use.** The fighter constructor no longer initialises `face`, `stk` or the AI parameters.
 - **Earlier rounds** (before this pass): blood particles removed, stock hearts became dots, the theme table flattened, background widgets shared across stages, camera helpers inlined, LED chase simplified, `floor` as a local, stars from a formula.
 
-Measured and rejected: the factory table form `badge.ui.box{...}` is larger than positional calls; shortening field names to one letter saved little; dropping the draw caches saved bytes but adds LVGL work every tick; and dropping the `sa`/`sb` draw caches was rejected for the same reason.
+The second pass, about 1,350 bytes, came from reading the `luac -l -l` listing with the Lua 5.5 cost model in mind. Every arithmetic operator emits a metamethod-fallback instruction after itself, so each `+ - * /` costs 8 bytes; every float constant costs 9 bytes; a table field read is an instruction plus a string constant; a `k and A or B` expression costs six instructions. What paid:
+
+- **String functions as methods.** `("fmt"):unpack(s, i)` and `(s):byte(i, j)` compile to one `SELF` instruction and drop the `string` global lookup and its constant from each function that used it.
+- **Cache repeated reads in locals.** Inside `step`, the fighter's `x`, `y`, `vy`, `atk` and `air` are read into locals once and the table is written back once; `badge`, `math.abs`, `badge.input.is_down`, `badge.ui.label` and `W.msg` are locals or upvalues where they are used more than twice. Each table read saved is 4 bytes plus, often, a constant.
+- **Branches instead of `k and A or B` chains.** The launch velocities are one `if k then ... else ... end` with constant-operand stores, 40 bytes less than four conditional expressions.
+- **Cutscene time in tenths.** `h = t // 100` makes every phase threshold an immediate operand instead of a load and compare, and reuses the division the tremble already did.
+- **Fewer operators.** The zoom is `2.2 - u * u / 1875000` with `u = min(0, t - 1500)` (one operator and one float fewer than `2.2 - 1.2 * (1 - t/1500)^2`, same curve); the walk-in is `min(-176, ...)` on the negated coordinate so the mirror is `300 + x` or `-x`; `(atk + 1) % 18` replaces a compare and reset; `dmg // 8` replaces `floor(dmg / 8)`; the pool width folds its `+ 4` into the time offset; the attacker is placed by the walk-in formula from the first tick, so the KO handler no longer positions it.
+- **One head call in `draw`.** The lying-flat pose only changes the head's y, so the head is placed once after the branch.
+- **`<const>` on the theme string** so it loads straight into the argument register, and `PY + 0` where a field is set to `PY`: a bare `<const>` name on the right of a field store compiles to a load and a store, while any folded expression becomes one store with a constant operand.
+- **The AGI line rides in `sub`.** The KO handler picks the end line for every difficulty from one six-entry table; the cutscene types it from `sub`, and when it sets state 5 the ordinary end-screen path in `on_tick` sees the line is already fully shown, clears `sub` and shows the rematch prompt. `hint()` was inlined at its three call sites.
+- **Invariants that make a check redundant.** A dead fighter always has `atk` 0, so `draw` no longer tests `dead`; neither cutscene projectile is on screen when it comes back down, so the bounce has no x-range check; the hint label's text is empty exactly when it used to be hidden, and an empty label draws nothing, so the `hidden` toggles went; the first-tick `last` initialisation went because `acc` is reset when a fight starts and is unread before; the countdown's clamp to zero went because the elapsed time is always under 3.6 s in that branch.
+- **Hit test as a range.** `abs(a - b) < n` became `d > -n and d < n` on a difference computed once, which also removed `math.abs` from `step`; `atk // 5 == 1` is the active window of steps 5 to 9 in one comparison.
+- **Shared arithmetic.** The knockback velocities share one product: `kb = 3 + dm * 0.06`, `vx = d * kb`, `vy = (kb + 1) / -2`, which is bit-identical to `-(2 + dm * 0.03)` for every damage value and drops a float constant.
+- **Derived flags tested at the use site.** The AI's hop and recover flags were `di == 3` and `di > 1` stored in fields; testing `di` where they are read costs the same per use and removed the stores.
+- **HUD widgets on the fighter.** The damage label, stock dots and name tag moved from three parallel arrays onto the fighter table, which removed three tables and eleven upvalue references.
+- **One colour string for LEDs.** The menu colours and the two winner colours share one 15-byte string indexed by state, replacing the shift-and-mask split of the fighter colour.
+- **String literals joined with `\z`** instead of `..`, which the compiler does not fold.
+- **Timers without a floor.** Stun, block cooldown and the AI's block timer decrement unconditionally and are tested with `<= 0`, which removes a compare and branch per timer per step.
+- **Presses written into the input table** by `on_button` instead of two latch variables copied in every step.
+- **Module locals grouped** so the nil ones share one instruction, and `box()` moved inside `on_enter` so it needs no root upvalue.
+- **AI parameters in the difficulty row** decoded by the same `unpack` as the stage colours.
+
+Measured and rejected: the factory table form `badge.ui.box{...}` is larger than positional calls; shortening field names to one letter saved little (Lua 5.5 deduplicates identical strings across the whole chunk, so a name is paid for once, not once per function); dropping the draw caches saved bytes but adds LVGL work every tick; inlining `cut`, `ainp`, `leds` and `draw` into `on_tick` would save about 270 bytes at a real cost in readability and is held in reserve; caching `badge.ui` and `badge.input` in upvalues and other single-use locals measured at zero; folding the walk multiplier into the speed field is one ulp off for CHATBOT.
 
 Runtime allocations are minimal as well. Input tables are reused, no widgets are created after `on_enter`, and per-tick garbage is limited to the HUD string when damage changes and the decoded theme locals when a stage is applied.
 
@@ -361,7 +388,6 @@ Alongside that, `luac -p` checks syntax, `luac -s` gives the bytecode size to ho
 |---|---|
 | `spawn(f, x)` | Reset a fighter's motion and combat fields at x, above the platform |
 | `hudup(c)` | Rewrite damage labels and stock dots; `c` hides all dots for a cutscene |
-| `hint(t)` | Set or hide the bottom hint line |
 | `typ(w, tx, t)` | Typewriter reveal, returns true when done |
 | `wb(w, x, y, ww, hh)` | Place a widget from world coordinates through the zoom `Z` |
 | `draw(f)` | Position a fighter's three boxes through `wb`, with change caching |
@@ -372,5 +398,5 @@ Alongside that, `luac -p` checks syntax, `luac -s` gives the bytecode size to ho
 | `ainp(f, o)` | AI: fill in the AI fighter's inputs |
 | `step(f, o)` | One 20 ms physics and combat step for a fighter |
 | `leds(now)` | Set the six LEDs for the current state |
-| `box(...)` | Create a styled box in one call |
+| `box(...)` (inside `on_enter`) | Create a styled box in one call |
 | `on_enter`, `on_tick`, `on_button`, `on_exit` | Badge callbacks |
