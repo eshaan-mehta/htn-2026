@@ -22,15 +22,6 @@ Try beating AGI if you can (even I haven't been able to yet). There is a proper 
 
 ### Controls
 
-**Title screen**
-
-| Button | Action |
-|---|---|
-| Left / Right | Change difficulty |
-| A | Start |
-
-**In a fight**
-
 | Button | Action |
 |---|---|
 | Left / Right | Move |
@@ -38,13 +29,6 @@ Try beating AGI if you can (even I haven't been able to yet). There is a proper 
 | A | Attack |
 | B (hold) | Block. Blocking only works on the ground and only from the front. Releasing it puts you on a short cooldown. |
 | Start | Back to the title screen |
-
-**After a KO**
-
-| Button | Action |
-|---|---|
-| A | Rematch |
-| B | Title screen |
 
 The badge LEDs track the fight. Your three LEDs and the AI's three LEDs shift from green to red as damage climbs, and flash white on a hit.
 
