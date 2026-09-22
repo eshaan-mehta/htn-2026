@@ -40,16 +40,18 @@ If you would like to learn more, read [IMPLEMENTATION.md](IMPLEMENTATION.md). It
 
 You need a desktop Chrome or Edge browser, a USB-C **data** cable, and the badge IDE at **https://badge.hackthenorth.com/ide/**.
 
-1. Copy the entire contents of [`last_fight.min.lua`](last_fight.min.lua), including the `--[==[badge-app ... ]==]` header at the top. Always use the minified file when building from scratch: it is the same program as [`last_fight.lua`](last_fight.lua) with comments and spacing removed, so it is a third smaller to paste. The readable file is the one to read or edit.
-2. Open the [Badge IDE](https://badge.hackthenorth.com/ide/). If you have work in the editor already, save it first with **Download app**.
+1. Copy the entire contents of [`last_fight.min.lua`](last_fight.min.lua). **Always use the minified file when building from scratch**: it is the same program as [`last_fight.lua`](last_fight.lua) with comments and spacing removed.
+2. Open the [Badge IDE](https://badge.hackthenorth.com/ide/).
 3. Click **Import app** and paste the whole file. Check that the slug shows as `last_fight`, then click **Replace editor files**.
-4. Optional but recommended: download [`icon.png`](icon.png) from this repo, click **Choose image** in the IDE, and select it. This gives the game a proper launcher icon instead of the `HLF` text fallback. The image is already 42×42, the badge's icon size, so it needs no cropping.
+4. Optional but recommended: download [`icon.png`](icon.png) from this repo, click **Choose image** in the IDE, and select it. This gives the game a proper launcher icon instead of the `HLF` text fallback.
 5. Turn the badge **off**, plug in the USB-C cable and enable the connection from your computer
-6. Click **Connect** and choose **USB JTAG/serial debug unit** (sometimes labelled Espressif) in the browser's device picker. Close any other tabs or tools using the badge's serial port first.
-7. Click **Push** and keep the cable connected until the upload finishes.
+6. Click **Connect** and choose **USB JTAG/serial debug unit** (sometimes labelled Espressif) in the browser's device picker.
+7. Click **Push** and keep the cable connected until the upload finishes. You will see the progress in the top right corner.
 8. Find **Humanity's Last Fight** in the badge launcher and press **A**.
 
-**Troubleshooting:** if the app fails to open with `Lua memory limit exceeded` in the IDE console, the badge did not have enough free RAM to compile the file. Reboot the badge and try opening the app again straight from the launcher.
+**Troubleshooting:**
+- if the app fails to push, try rebooting the badge by pressing **reboot** in the IDE, and then push again.
+- if the app fails to open with `Lua memory limit exceeded` in the IDE console, the badge did not have enough free RAM to compile the file. Reboot the badge and try opening the app again straight from the launcher.
 
 **God mode**
 
