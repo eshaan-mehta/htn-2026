@@ -7,6 +7,27 @@ heap_kb=96
 wake_lock=1
 ]==]
 -- Humanity's Last Fight: You vs AI. L/R move  Up jump x2  A attack  B block  Start menu
+--
+-- How to read this file. The badge calls four global functions: on_enter (once, build the widgets),
+-- on_tick (as often as it can), on_button (per press/release) and on_exit. Everything else is a local
+-- helper. The game is a small state machine (st, below). Fighters are plain tables F[1] (you) and F[2]
+-- (the AI) drawn as three coloured boxes: body wb, head wh and attack box wa. Nothing is created after
+-- on_enter; all animation is moving, resizing, recolouring or hiding those boxes.
+--
+-- Coordinates: world units equal screen pixels on a 320x240 display. The platform's top edge is y = PY,
+-- spanning x = PX1..PX2; a fighter's (x, y) is the centre of its feet. y grows downward, so jumping is
+-- a negative vy. The cutscene draws the same world through a zoom Z (see wb).
+--
+-- Physics runs in fixed 20 ms steps (STEP) driven by on_tick, so the game plays the same at any frame rate.
+--
+-- Fighter fields: x y vx vy (position, velocity)  air dj (airborne, double jump available)  face (-1/1)
+-- dmg (damage %, sets knockback)  stk (stocks left)  atk (0 idle, else the swing's step 1..17; box out 5-9)
+-- hit (this swing already landed)  stun bcd bt t (timers, counted down each step)  blk (blocking)
+-- dead (respawn countdown, >0 while off screen)  flash (ms until the LED hit flash ends)
+-- inp (this step's inputs: l r up atk blk)  spd cd bp tm (AI parameters, see theme)  i (1 or 2)
+-- wb wh wa hud hearts tag (widgets)  sa sb (last drawn attack/block state, to skip redundant LVGL calls)
+-- cut (cutscene pose: nil, 0 struck, 1/2 launched, 3 win aftermath).
+--
 -- <const> lets the compiler fold these into instruction operands (one name per line, or only the last folds)
 local PX1 <const> = 40
 local PX2 <const> = 280
@@ -21,6 +42,9 @@ local F, W, NM = {}, {}, {"You", "AI"}
 -- st: 1 menu, 2 countdown, 3 play, 4 AGI cutscene (win or loss), 5 ko/end screen
 local st, di, acc, last, cn, ledt, kw, sn, Z = 1, 1, 0, 0, -1, 0, 1, -1, 1 -- Z: cutscene camera zoom
 local B, R, L, ct, sub, god -- button table, root widget, LED API, state start ms, end line; god: toggled by every flip of the AUX1 side switch
+
+-- Reset a fighter's motion and combat state and drop it in from 60 px above the platform at x.
+-- Used at the start of a fight and after a fall. Stocks, facing and widgets are left alone.
 local function spawn(f, x)
   f.x = x; f.y = PY - 60
   f.vx = 0; f.vy = 0; f.air = true
@@ -28,7 +52,8 @@ local function spawn(f, x)
   f.blk = false; f.dj = true -- hit is cleared by every attack before it is read
 end
 
-local function hudup(c)  -- c: hide all hearts (cutscene)
+-- Refresh both HUD damage labels ("You 40%") and the stock dots. Pass true to hide every dot (the cutscene).
+local function hudup(c)
   for i = 1, 2 do
     local f = F[i]
     f.hud:set_text(NM[i] .. " " .. f.dmg .. "%")
@@ -36,7 +61,9 @@ local function hudup(c)  -- c: hide all hearts (cutscene)
   end
 end
 
--- typewriter: reveal tx on w at 140 ms per char, t = ms since start; true when done
+-- Typewriter. Show the first n characters of tx on label w, where n grows one per 140 ms of t.
+-- sn remembers the last n so set_text only runs when a new character appears. Returns true once
+-- the whole line is out. Both end screens and both cutscenes use it.
 local function typ(w, tx, t)
   local l = #tx
   local n = min(l + 1, t // 140)
@@ -44,12 +71,19 @@ local function typ(w, tx, t)
   return n > l
 end
 
--- cutscene camera: world units scaled by Z about the player's spot (150, PY)
+-- Camera. Place widget w at world (x, y) with size (ww, hh), scaled by the zoom Z about the point
+-- (150, PY), the middle of the platform. At Z = 1 world and screen coincide, which is the whole fight;
+-- the cutscene raises Z to 2.2 so the same boxes and the same draw code become a close-up.
+-- LVGL needs integers, hence the floors.
 local function wb(w, x, y, ww, hh)
   local fl, z = floor, Z
   w:set_pos(fl(150 + (x - 150) * z), fl(PY + (y - PY) * z)); w:set_size(fl(ww * z), fl(hh * z))
 end
 
+-- Draw one fighter: body, head and (during a swing) the attack box, all through the camera.
+-- A dead fighter is parked off screen. cut == 2 is the lying-flat pose of the loss cutscene.
+-- The attack box shows only on swing steps 5-9; the body turns dark while blocking. sa/sb cache
+-- what LVGL was last told so hidden()/set_color() are only called when something changes.
 local function draw(f)
   local x, y = f.x, f.y
   if f.dead > 0 then x = -50; y = -50 end
@@ -65,13 +99,16 @@ local function draw(f)
   if b ~= f.sb then f.sb = b; f.wb:set_color(FC[f.i + (b and 4 or 0)]) end
 end
 
--- redraw the whole scene at camera Z: platform, dirt and both fighters
+-- Redraw everything the camera affects: platform, dirt and both fighters. Called once per tick.
 local function frame()
   wb(W.plat, PX1, PY, PX2 - PX1, 10); wb(W.dirt, PX1 + 4, PY + 10, PX2 - PX1 - 8, 12)
   draw(F[1]); draw(F[2])
 end
 
--- apply the stage theme of difficulty d (default: the selected one); the win cutscene calls theme(1) for a daytime ending
+-- Apply difficulty d's data row: sky, hills, clouds, stars, sun/moon, platform colours, the menu's
+-- difficulty label, and the AI's four tuning parameters. d defaults to the selected difficulty; the win
+-- cutscene calls theme(1) to bring back the daytime stage. All three stages share one set of widgets,
+-- so switching is a data change: the rows live in one packed binary string decoded with unpack.
 local function theme(d)
   d = d or di
   -- TH: 42 bytes per difficulty, big-endian: sky bands 1-4 and hill colour (3 bytes each), hill radius (1),
@@ -95,7 +132,9 @@ local function theme(d)
   W.dif:set_text("Difficulty:   <  " .. ({"CHATBOT", "AGENT", "AGI"})[d] .. "  >")
 end
 
--- scene setup, st becomes m: 1 menu, 2 start a fight (fighters respawn on the platform), 4 AGI cutscene
+-- Enter state m and set up the whole scene for it: 1 menu, 2 start a fight, 4 AGI cutscene.
+-- One function does every transition so each state can change anything it likes; the next place()
+-- puts it all back. c/h/g are "cutscene", "hide the menu widgets", "hide the HUD".
 local function place(m, now)
   local c, h, g = m == 4, m ~= 1, m ~= 2
   theme() -- also undoes the win cutscene's daytime ending
@@ -169,6 +208,12 @@ local function cut(now)
   frame()
 end
 
+-- AI. Fill in the AI fighter f's input table for this step by looking at its opponent o.
+-- Walk toward the player until within 26 px, otherwise face them. Attack when the cooldown timer t
+-- has run out and the player is within 30 px, with probability tm; weak AIs also throw a rare long
+-- swing. Block (for 14 steps) with probability bp when it sees a swing start. In the air past an
+-- edge, steer back; AGENT and AGI double jump to recover. AGI ("hop") also punishes the player's
+-- recovery frames and hops at random. The parameters come from the difficulty row (see theme).
 local function ainp(f, o)
   local n, dx, rnd, hop = f.inp, o.x - f.x, badge.sys.random, di == 3
   local ad, live = abs(dx), o.dead == 0
@@ -195,6 +240,16 @@ local function ainp(f, o)
   end
 end
 
+-- One 20 ms physics and combat step for fighter f against o, in this order:
+--  1. dead: count down the respawn timer and do nothing else.
+--  2. timers: stun and block cooldown tick down. free = not stunned and not mid-swing.
+--  3. block: B held on the ground while free; letting go starts a 10-step cooldown.
+--  4. inputs (only when free and not blocking): walk, start a swing, jump or double jump.
+--  5. swing counter advances 1..17 then resets; steps 5-9 are the active frames.
+--  6. gravity, integrate, land on the platform (only if it was above it last step), or fall off the edge.
+--  7. hit test: the fist is 16 px ahead of the attacker; a hit within 16x22 px adds 10% damage and sends
+--     the victim flying, harder the more damage they have. A block from the front just nudges them.
+--  8. ring-out: below the screen or far past a side loses a stock; the last stock ends the fight.
 local function step(f, o)
   local n, mg, d, s, cd = f.inp, W.msg, f.dead, f.stun, f.bcd
   if d > 0 then
@@ -269,6 +324,9 @@ local function step(f, o)
   end
 end
 
+-- Drive the six LEDs for the current state, every 50 ms. In a fight each side's three LEDs fade green
+-- to red with that fighter's damage and flash white when hit; the menu shows the difficulty colour, the
+-- countdown brightens, the cutscene pulses, the end screen shows the winner's colour.
 local function leds(now)
   local r, g, b = 0, 0, 0
   if st == 3 then  -- play: each side shows its fighter's damage, white flash on hit
@@ -296,9 +354,14 @@ local function leds(now)
   L.show()
 end
 
+-- Badge callback, called once when the app opens. Creates every widget the game will ever use and
+-- shows the menu. Draw order is creation order, so this builds back to front: sky, hills, stars, sun,
+-- clouds, dirt, platform, each fighter with its HUD, the blood pool, the menu overlay, then the labels.
+-- Positions that vary per widget are packed in short strings and decoded, which is cheaper than tables.
 function on_enter(root)
   badge = _ENV.badge
   B, R, L = badge.input.BUTTON, root, badge.led
+  -- a coloured rounded box at (x, y); colour 0 for the ones theme() recolours
   local function box(w, h, x, y, c, r)
     local b = badge.ui.box(R, w, h)
     b:set_pos(x, y)
@@ -351,6 +414,10 @@ function on_enter(root)
   place(1)
 end
 
+-- Badge callback, called repeatedly. acc accumulates real time and the fight consumes it in 20 ms
+-- steps (at most three per tick, so a stall slows the game instead of bursting), then draws once.
+-- Held buttons are polled here each step; presses arrive through on_button and are cleared after
+-- the step that used them. The other states just advance their timers.
 function on_tick()
   local now = badge.sys.ms()
   acc = min(acc + now - last, STEP * 3)
@@ -385,6 +452,10 @@ function on_tick()
   if now >= ledt then ledt = now + 50; leds(now) end
 end
 
+-- Badge callback for button events. A starts a fight from the menu or end screen; Start goes back to
+-- the menu; B on the end screen too. Left/Right pick the difficulty on the menu. In a fight, A and Up
+-- are one-shot presses latched into your input table (held buttons are polled in on_tick instead).
+-- The AUX1 side switch toggles god mode on any flip.
 function on_button(b, kind)
   if b == B.AUX1 then god = not god; return end -- edge-triggered: any flip toggles, whatever position it started in
   if kind ~= badge.input.KIND.PRESSED then return end
@@ -399,6 +470,7 @@ function on_button(b, kind)
   end
 end
 
+-- Badge callback when the app closes: turn the LEDs off.
 function on_exit()
   L.clear()
   L.show()

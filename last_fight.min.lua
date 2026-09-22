@@ -8,6 +8,27 @@ wake_lock=1
 ]==]
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 local PX1<const> =40
 local PX2<const> =280
 local PY<const> =170
@@ -21,12 +42,16 @@ local F,W,NM={},{},{"You","AI"}
 
 local st,di,acc,last,cn,ledt,kw,sn,Z=1,1,0,0,-1,0,1,-1,1
 local B,R,L,ct,sub,god
+
+
+
 local function spawn(f,x)
 f.x=x;f.y=PY-60
 f.vx=0;f.vy=0;f.air=true
 f.dmg=0;f.atk=0;f.stun=0;f.dead=0;f.bcd=0;f.bt=0
 f.blk=false;f.dj=true
 end
+
 
 local function hudup(c)
 for i=1,2 do
@@ -37,6 +62,8 @@ end
 end
 
 
+
+
 local function typ(w,tx,t)
 local l=#tx
 local n=min(l+1,t//140)
@@ -45,10 +72,17 @@ return n>l
 end
 
 
+
+
+
 local function wb(w,x,y,ww,hh)
 local fl,z=floor,Z
 w:set_pos(fl(150+(x-150)*z),fl(PY+(y-PY)*z));w:set_size(fl(ww*z),fl(hh*z))
 end
+
+
+
+
 
 local function draw(f)
 local x,y=f.x,f.y
@@ -70,6 +104,9 @@ local function frame()
 wb(W.plat,PX1,PY,PX2-PX1,10);wb(W.dirt,PX1+4,PY+10,PX2-PX1-8,12)
 draw(F[1]);draw(F[2])
 end
+
+
+
 
 
 local function theme(d)
@@ -94,6 +131,8 @@ p:set_color(pc);p:set_border(bc,bw)
 W.dirt:set_color(dc)
 W.dif:set_text("Difficulty:   <  "..({"CHATBOT","AGENT","AGI"})[d].."  >")
 end
+
+
 
 
 local function place(m,now)
@@ -169,6 +208,12 @@ end
 frame()
 end
 
+
+
+
+
+
+
 local function ainp(f,o)
 local n,dx,rnd,hop=f.inp,o.x-f.x,badge.sys.random,di==3
 local ad,live=abs(dx),o.dead==0
@@ -194,6 +239,16 @@ elseif hop and bt<=0 and rnd(100)<2 then
 n.up=true
 end
 end
+
+
+
+
+
+
+
+
+
+
 
 local function step(f,o)
 local n,mg,d,s,cd=f.inp,W.msg,f.dead,f.stun,f.bcd
@@ -269,6 +324,9 @@ end
 end
 end
 
+
+
+
 local function leds(now)
 local r,g,b=0,0,0
 if st==3 then
@@ -296,9 +354,14 @@ end
 L.show()
 end
 
+
+
+
+
 function on_enter(root)
 badge=_ENV.badge
 B,R,L=badge.input.BUTTON,root,badge.led
+
 local function box(w,h,x,y,c,r)
 local b=badge.ui.box(R,w,h)
 b:set_pos(x,y)
@@ -351,6 +414,10 @@ W.title:set_color(FC[1])
 place(1)
 end
 
+
+
+
+
 function on_tick()
 local now=badge.sys.ms()
 acc=min(acc+now-last,STEP*3)
@@ -385,6 +452,10 @@ end
 if now>=ledt then ledt=now+50;leds(now)end
 end
 
+
+
+
+
 function on_button(b,kind)
 if b==B.AUX1 then god=not god;return end
 if kind~=badge.input.KIND.PRESSED then return end
@@ -398,6 +469,7 @@ local n=F[1].inp
 if b==B.A then n.atk=true elseif b==B.UP then n.up=true end
 end
 end
+
 
 function on_exit()
 L.clear()
