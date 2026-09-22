@@ -68,7 +68,7 @@ Lifecycle:
 - `on_button(b, kind)` handles presses. Held buttons are polled instead.
 - `on_exit()` turns the LEDs off.
 
-Two files ship alongside the source. `last_fight.min.lua` is the same program with comments and spacing stripped, for pasting into the IDE. `tools/minify.py` generates it and keeps every line number, so a badge error line points at the same line in the readable file.
+Two files ship alongside the source. `last_fight.min.lua` is the same program with comments and spacing stripped, for pasting into the IDE. `tools/minify.py` generates it, dropping comments, blank lines and optional spacing, so its line numbers do not match the readable file.
 
 ## 3. State machine
 

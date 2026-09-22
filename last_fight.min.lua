@@ -6,29 +6,6 @@ api=2
 heap_kb=96
 wake_lock=1
 ]==]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local PX1<const> =40
 local PX2<const> =280
 local PY<const> =170
@@ -39,20 +16,14 @@ local RM<const> ="A  rematch        B  menu"
 local floor,min,abs,badge=math.floor,math.min,math.abs
 local FC={0xffd23f,0xff4f6d,0xffe98a,0xff9fb0,0x9a7e20,0x99303f}
 local F,W,NM={},{},{"You","AI"}
-
 local st,di,acc,last,cn,ledt,kw,sn,Z=1,1,0,0,-1,0,1,-1,1
 local B,R,L,ct,sub,god
-
-
-
 local function spawn(f,x)
 f.x=x;f.y=PY-60
 f.vx=0;f.vy=0;f.air=true
 f.dmg=0;f.atk=0;f.stun=0;f.dead=0;f.bcd=0;f.bt=0
 f.blk=false;f.dj=true
 end
-
-
 local function hudup(c)
 for i=1,2 do
 local f=F[i]
@@ -60,30 +31,16 @@ f.hud:set_text(NM[i].." "..f.dmg.."%")
 for k=1,3 do f.hearts[k]:hidden(c or k>f.stk)end
 end
 end
-
-
-
-
 local function typ(w,tx,t)
 local l=#tx
 local n=min(l+1,t//140)
 if n~=sn and n>=0 then sn=n;w:set_text(tx:sub(1,n))end
 return n>l
 end
-
-
-
-
-
 local function wb(w,x,y,ww,hh)
 local fl,z=floor,Z
 w:set_pos(fl(150+(x-150)*z),fl(PY+(y-PY)*z));w:set_size(fl(ww*z),fl(hh*z))
 end
-
-
-
-
-
 local function draw(f)
 local x,y=f.x,f.y
 if f.dead>0 then x=-50;y=-50 end
@@ -98,25 +55,13 @@ if act~=f.sa then f.sa=act;f.wa:hidden(not act)end
 local b=f.blk
 if b~=f.sb then f.sb=b;f.wb:set_color(FC[f.i+(b and 4 or 0)])end
 end
-
-
 local function frame()
 wb(W.plat,PX1,PY,PX2-PX1,10);wb(W.dirt,PX1+4,PY+10,PX2-PX1-8,12)
 draw(F[1]);draw(F[2])
 end
-
-
-
-
-
 local function theme(d)
 d=d or di
-
-
-
-local TH<const> ="\x2a\x6f\xd6\x3b\x82\xe2\x56\xa0\xee\x7c\xc0\xf8\x34\x67\xa8\x28\xff\xff\xff\x00\x00\x00\xff\xe1\x4a\x1e\xb6\x06\x3f\xae\x3f\x7a\x4a\x1e\x00\x00\x00\x00\x0c\x5a\x00\x05\z
-\x14\x10\x2a\x2a\x1a\x48\x4b\x2a\x5a\x7a\x3a\x55\x12\x0e\x1e\x28\x3a\x38\x48\xd0\xd0\xe0\xd8\xda\xe6\x18\xba\x08\x5c\x6b\x34\x35\x25\x18\x00\x00\x00\x00\x14\x2d\x1e\x28\z
-\x05\x00\x05\x18\x00\x06\x38\x00\x0a\x70\x00\x0e\x00\x00\x00\x00\x2a\x00\x00\xff\x4a\x20\x00\x00\x00\x00\x00\x00\x15\x08\x08\x05\x00\x00\xff\x20\x20\x02\x19\x26\x41\x64"
+local TH<const> ="\x2a\x6f\xd6\x3b\x82\xe2\x56\xa0\xee\x7c\xc0\xf8\x34\x67\xa8\x28\xff\xff\xff\x00\x00\x00\xff\xe1\x4a\x1e\xb6\x06\x3f\xae\x3f\x7a\x4a\x1e\x00\x00\x00\x00\x0c\x5a\x00\x05\z\x14\x10\x2a\x2a\x1a\x48\x4b\x2a\x5a\x7a\x3a\x55\x12\x0e\x1e\x28\x3a\x38\x48\xd0\xd0\xe0\xd8\xda\xe6\x18\xba\x08\x5c\x6b\x34\x35\x25\x18\x00\x00\x00\x00\x14\x2d\x1e\x28\z\x05\x00\x05\x18\x00\x06\x38\x00\x0a\x70\x00\x0e\x00\x00\x00\x00\x2a\x00\x00\xff\x4a\x20\x00\x00\x00\x00\x00\x00\x15\x08\x08\x05\x00\x00\xff\x20\x20\x02\x19\x26\x41\x64"
 local s1,s2,s3,s4,hc,hr,cc,sc,oc,os,ox,oy,pc,dc,bc,bw,sp,cd,bp,tm=(">I3I3I3I3I3BI3I3I3BBBI3I3I3BBBBB"):unpack(TH,d*42-41)
 local a=F[2]
 a.spd=sp/20;a.cd=cd;a.bp=bp;a.tm=tm
@@ -131,10 +76,6 @@ p:set_color(pc);p:set_border(bc,bw)
 W.dirt:set_color(dc)
 W.dif:set_text("Difficulty:   <  "..({"CHATBOT","AGENT","AGI"})[d].."  >")
 end
-
-
-
-
 local function place(m,now)
 local c,h,g=m==4,m~=1,m~=2
 theme()
@@ -161,12 +102,6 @@ st=m;ct=now;cn=-1
 hudup(c)
 frame()
 end
-
-
-
-
-
-
 local function cut(now)
 local t,w=now-ct,kw
 local p,a,k,h=F[3-w],F[w],w==1,t//100
@@ -207,13 +142,6 @@ if h>=78 and typ(W.msg,sub,t-7800)and h>=115 then st=5 end
 end
 frame()
 end
-
-
-
-
-
-
-
 local function ainp(f,o)
 local n,dx,rnd,hop=f.inp,o.x-f.x,badge.sys.random,di==3
 local ad,live=abs(dx),o.dead==0
@@ -239,17 +167,6 @@ elseif hop and bt<=0 and rnd(100)<2 then
 n.up=true
 end
 end
-
-
-
-
-
-
-
-
-
-
-
 local function step(f,o)
 local n,mg,d,s,cd=f.inp,W.msg,f.dead,f.stun,f.bcd
 if d>0 then
@@ -307,7 +224,6 @@ f.stk=f.stk-1
 hudup()
 if f.stk==0 then
 kw,sn=o.i,-1
-
 sub=({"You beat AI from 2022...\nBut agents have taken over now","Damn, I guess humanity\nnever stood a chance.",
 "Yay! It was just a bubble after all.\nOr maybe not...","It was fun while it lasted.","Humanity is safe at last.","It's our time now"})[di*2+kw-2]
 if di<3 then
@@ -323,10 +239,6 @@ mg:set_text(NM[f.i].." fell!")
 end
 end
 end
-
-
-
-
 local function leds(now)
 local r,g,b=0,0,0
 if st==3 then
@@ -353,15 +265,9 @@ L.set_all(r,g,b)
 end
 L.show()
 end
-
-
-
-
-
 function on_enter(root)
 badge=_ENV.badge
 B,R,L=badge.input.BUTTON,root,badge.led
-
 local function box(w,h,x,y,c,r)
 local b=badge.ui.box(R,w,h)
 b:set_pos(x,y)
@@ -403,9 +309,7 @@ F[i]=f
 end
 W.pool=box(4,4,-10,-10,0xd01020,2)
 W.over=box(320,240,0,0,0x000000,0)
-for k,tx,fo,ax,al,dx,dy in("title|HUMANITY'S\nLAST FIGHT|24|center|top_mid|0|6;keys|Left / Right\nUp\nA\nB|16|right|right_mid|-170|-6;\z
-acts|move\njump  (twice)\nattack\nblock|16|left|left_mid|168|-6;dif||20|center|center|0|66;hint||14|center|bottom_mid|0|-8;\z
-msg||24|center|center|0|-64;sub||16|center|center|0|-14;"):gmatch("(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-);")do
+for k,tx,fo,ax,al,dx,dy in("title|HUMANITY'S\nLAST FIGHT|24|center|top_mid|0|6;keys|Left / Right\nUp\nA\nB|16|right|right_mid|-170|-6;\zacts|move\njump  (twice)\nattack\nblock|16|left|left_mid|168|-6;dif||20|center|center|0|66;hint||14|center|bottom_mid|0|-8;\zmsg||24|center|center|0|-64;sub||16|center|center|0|-14;"):gmatch("(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-);")do
 local l=lb(R,tx)
 l:style({text_font=fo+0,text_align=ax});l:align(al,dx+0,dy+0)
 W[k]=l
@@ -413,11 +317,6 @@ end
 W.title:set_color(FC[1])
 place(1)
 end
-
-
-
-
-
 function on_tick()
 local now=badge.sys.ms()
 acc=min(acc+now-last,STEP*3)
@@ -451,11 +350,6 @@ if typ(W.sub,sub,now-ct-800)then sub=nil;W.hint:set_text(RM)end
 end
 if now>=ledt then ledt=now+50;leds(now)end
 end
-
-
-
-
-
 function on_button(b,kind)
 if b==B.AUX1 then god=not god;return end
 if kind~=badge.input.KIND.PRESSED then return end
@@ -469,8 +363,6 @@ local n=F[1].inp
 if b==B.A then n.atk=true elseif b==B.UP then n.up=true end
 end
 end
-
-
 function on_exit()
 L.clear()
 L.show()

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Line-preserving Lua minifier for badge apps.
+"""Lua minifier for badge apps.
 
-Keeps the 8-line badge-app header verbatim, then strips comments and all
-optional whitespace. Every newline is kept, so line numbers are unchanged and
-badge error lines map straight back to the readable source. Strings may span
-lines with the \\z continuation escape. Long strings/comments ([[ ]]) are not
-supported outside the header.
+Keeps the 8-line badge-app header verbatim, then strips comments, blank lines
+and all optional whitespace: one output line per source line that has code.
+Line numbers are therefore NOT preserved; debug with the readable file. Strings
+may span lines with the \\z continuation escape (the whitespace after it is
+dropped). Long strings/comments ([[ ]]) are not supported outside the header.
 
 Note: the badge compiles the source in RAM, and stripped bytecode (luac -s) is
 what its memory limit tracks, so minifying never changes whether an app fits.
@@ -57,13 +57,12 @@ def minify(body):
         if kind == 'comment':
             continue
         if kind == 'ws':
-            nl = tok.count('\n')
-            if nl:
-                out.append('\n' * nl)
+            if '\n' in tok and out and not out[-1].endswith('\n'):
+                out.append('\n')
             continue
         if kind == 'str':
-            # after a \z continuation Lua skips all whitespace: keep only the newlines (for line numbers)
-            tok = re.sub(r'(\\z)[ \t]*((?:\n[ \t]*)+)', lambda g: g.group(1) + '\n' * g.group(2).count('\n'), tok)
+            # after a \z continuation Lua skips all whitespace, so none of it needs to be kept
+            tok = re.sub(r'(\\z)\s+', r'\1', tok)
         if out and not out[-1].endswith('\n') and needs_space(out[-1], tok):
             out.append(' ')
         out.append(tok)

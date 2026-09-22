@@ -63,7 +63,7 @@ Edit `last_fight.lua`, then regenerate the minified build before pushing or comm
 python3 tools/minify.py last_fight.lua > last_fight.min.lua
 ```
 
-The minifier keeps every line number, so an error line reported by the badge points at the same line in the readable file.
+The minified file has comments and blank lines removed, so its line numbers do not match the readable file; if the badge reports an error line, push the readable file to find it.
 
 ## Share it with others :)
 
