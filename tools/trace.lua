@@ -28,9 +28,12 @@ local function widget(kind, root, a, b)
     elseif k == "set_text" then setp(self, "text", args[1])
     elseif k == "hidden" then setp(self, "hidden", tostring(args[1]))
     elseif k == "set_color" then setp(self, self.kind == "label" and "s.text_color" or "s.bg_color", ser(args[1]))
+      if self.kind ~= "label" then setp(self, "s.bg_opa", "255") end -- bg_color implies bg_opa 255 (badge API doc)
     elseif k == "set_border" then setp(self, "s.border_color", ser(args[1])); setp(self, "s.border_width", ser(args[2]))
     elseif k == "style" then for kk, vv in pairs(args[1]) do setp(self, "s." .. kk, ser(vv)) end
-      if args[1].bg_color and not args[1].bg_opa and self.st["s.bg_opa"] == nil then setp(self, "s.bg_opa", "255") end
+      -- bg_color implies bg_opa 255, and the firmware applies a style table's keys in no fixed order, so model the
+      -- worst case: a table that sets bg_color ends up opaque even if it also sets bg_opa
+      if args[1].bg_color then setp(self, "s.bg_opa", "255") end
     elseif k == "align" then setp(self, "align", ser(args))
     else setp(self, k, ser(args)) end
     return self end end})

@@ -92,8 +92,8 @@ f.wa:set_color(c and i==2 and 0xff2020 or FC[i])
 f.hud:hidden(g);f.tag:hidden(g)
 end
 for n in("over title keys acts dif"):gmatch("%a+")do W[n]:hidden(h)end
-local mg=W.msg
-W.over:style({bg_color=c and 0xffffff or 0,bg_opa=c and 255 or 130});mg:set_color(c and kw==2 and 0xff2020 or 0xffffff)
+local mg,o=W.msg,W.over
+o:set_color(c and 0xffffff or 0);o:style({bg_opa=c and 255 or 130});mg:set_color(c and kw==2 and 0xff2020 or 0xffffff)
 W.sub:set_text("");W.pool:hidden(true)
 if m~=2 then mg:set_text("")end
 W.hint:set_text(m==1 and"Left / Right  difficulty        A  start"or"")

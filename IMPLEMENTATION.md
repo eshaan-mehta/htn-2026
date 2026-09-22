@@ -137,7 +137,7 @@ The six colours live in one flat table, `FC`: bodies at 1 and 2, heads at 3 and 
 
 The HUD is two labels ("You 30%", "AI 10%") at the top corners and three 10x10 red dots per side for stocks. `hudup()` rewrites both labels and hides dots for lost stocks. It runs only when something changed: a hit or a fall.
 
-The menu draws over the live stage. The black overlay at 130/255 opacity dims everything behind it, and the title, control legend, and difficulty selector sit on top. Because the stage underneath is real, changing difficulty in the menu previews that stage's environment through the dim.
+The menu draws over the live stage. The black overlay at 130/255 opacity dims everything behind it, and the title, control legend, and difficulty selector sit on top. Setting a box's `bg_color` also makes it opaque, and the firmware applies the keys of one `style{}` table in no fixed order, so `place()` sets the overlay's colour with `set_color` first and its opacity with a separate `style{bg_opa}` call. An earlier build put both in one table and the menu came out opaque on some launches, depending on which key was applied last. Because the stage underneath is real, changing difficulty in the menu previews that stage's environment through the dim.
 
 Labels use fonts 14, 16, 20, and 24. Multi-line text uses explicit `\n` breaks rather than relying on wrapping.
 
