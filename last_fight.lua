@@ -187,7 +187,7 @@ local function cut(now)
     end
   elseif p.cut == 0 then
     p.cut = w
-    over:hidden(true); wa:hidden(not k); W.pool:hidden(k) -- the punch stays extended while the AI flies
+    over:hidden(true); wa:hidden(true); W.pool:hidden(k) -- weapon away; blood pool for the loss only
     p.x = 150
     if k then p.y = PY + 0; p.vx = 7; p.vy = -13 else p.y = PY - 27; p.vx = -1.6; p.vy = -5 end
   else
